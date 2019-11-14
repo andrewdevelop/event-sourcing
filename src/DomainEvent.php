@@ -11,122 +11,122 @@ use JsonSerializable;
 
 class DomainEvent implements Event
 {
-	/**
-	 * UUID 4
-	 * @var string
-	 */
-	protected $id;
+    /**
+     * UUID 4
+     * @var string
+     */
+    protected $id;
 
-	/**
-	 * Event name
-	 * @var string
-	 */
-	protected $name;
+    /**
+     * Event name
+     * @var string
+     */
+    protected $name;
 
-	/**
-	 * Event versioning.
-	 * @var integer
-	 */
-	protected $version;
+    /**
+     * Event versioning.
+     * @var integer
+     */
+    protected $version;
 
-	/**
-	 * Aggregate UUID
-	 * @var string
-	 */
-	protected $aggregate_id;
+    /**
+     * Aggregate UUID
+     * @var string
+     */
+    protected $aggregate_id;
 
-	/**
-	 * Class of aggreagate root
-	 * @var string
-	 */
-	protected $aggregate_type;
+    /**
+     * Class of aggreagate root
+     * @var string
+     */
+    protected $aggregate_type;
 
-	/**
-	 * Aggregate version
-	 * @var int
-	 */
-	protected $aggregate_version;
+    /**
+     * Aggregate version
+     * @var int
+     */
+    protected $aggregate_version;
 
-	/**
-	 * Event payload
-	 * @var array|object
-	 */
-	protected $payload;
+    /**
+     * Event payload
+     * @var array|object
+     */
+    protected $payload;
 
-	/**
-	 * Event meta
-	 * @var array|object
-	 */
-	protected $metadata;
+    /**
+     * Event meta
+     * @var array|object
+     */
+    protected $metadata;
 
-	/**
-	 * Event created at
-	 * @var Carbon
-	 */
-	protected $created_at;
-
-
-	/**
-	 * Instaniate a new event.
-	 * @param array|object $data 
-	 */
-	public function __construct($data = [])
-	{
-		$keys = array_keys(get_object_vars($this));
-		foreach ($keys as $key) {
-			$value = isset($data[$key]) ? $data[$key] : null;
-			$this->setAttribute($key, $value);
-		}
-		if (!$this->name) {
-			throw new InvalidArgumentException('Event name not defined.');
-		}
-	}
-
-	/**
-	 * Magic getter.
-	 * @param  string $key 
-	 * @return mixed      
-	 */
-	public function __get($key)
-	{
-		if (property_exists($this, $key)) return $this->getAttribute($key);
-	}
-
-	/**
-	 * Magic setter.
-	 * @param strring $key   
-	 * @param mixed $value 
-	 */
-	public function __set($key, $value)
-	{
-		if (property_exists($this, $key)) $this->setAttribute($key, $value);
-	}
+    /**
+     * Event created at
+     * @var Carbon
+     */
+    protected $created_at;
 
 
-	/**
-	 * Get attribute.
-	 * @param  string $key 
-	 * @return mixed
-	 */
-	protected function getAttribute($key)
-	{
-		$method = 'get' . str_replace('_', '', ucwords($key, '_'));
-		if (method_exists($this, $method)) return call_user_func([$this, $method]);
-		return $this;
-	}
+    /**
+     * Instaniate a new event.
+     * @param array|object $data 
+     */
+    public function __construct($data = [])
+    {
+        $keys = array_keys(get_object_vars($this));
+        foreach ($keys as $key) {
+            $value = isset($data[$key]) ? $data[$key] : null;
+            $this->setAttribute($key, $value);
+        }
+        if (!$this->name) {
+            throw new InvalidArgumentException('Event name not defined.');
+        }
+    }
 
-	/**
-	 * Set a given attribute.
+    /**
+     * Magic getter.
+     * @param  string $key 
+     * @return mixed      
+     */
+    public function __get($key)
+    {
+        if (property_exists($this, $key)) return $this->getAttribute($key);
+    }
+
+    /**
+     * Magic setter.
+     * @param strring $key   
+     * @param mixed $value 
+     */
+    public function __set($key, $value)
+    {
+        if (property_exists($this, $key)) $this->setAttribute($key, $value);
+    }
+
+
+    /**
+     * Get attribute.
+     * @param  string $key 
+     * @return mixed
+     */
+    protected function getAttribute($key)
+    {
+        $method = 'get' . str_replace('_', '', ucwords($key, '_'));
+        if (method_exists($this, $method)) return call_user_func([$this, $method]);
+        return $this;
+    }
+
+    /**
+     * Set a given attribute.
      * @param  string  $key
      * @param  mixed  $value
      * @return self
-	 */
-	protected function setAttribute($key, $value = null)
-	{
-		$method = 'set' . str_replace('_', '', ucwords($key, '_'));
-		if (method_exists($this, $method)) call_user_func([$this, $method], $value);
-		return $this;
-	}
+     */
+    protected function setAttribute($key, $value = null)
+    {
+        $method = 'set' . str_replace('_', '', ucwords($key, '_'));
+        if (method_exists($this, $method)) call_user_func([$this, $method], $value);
+        return $this;
+    }
 
 
     /**
@@ -162,7 +162,7 @@ class DomainEvent implements Event
      */
     public function setName($name = null)
     {
-    	if ($name) $this->name = $name;
+        if ($name) $this->name = $name;
         return $this;
     }
 
@@ -180,7 +180,7 @@ class DomainEvent implements Event
      */
     public function setCreatedAt($created_at = null)
     {
-    	if (!$created_at) $created_at = Carbon::now();
+        if (!$created_at) $created_at = Carbon::now();
         $this->created_at = $this->fromDateTime($created_at);
         return $this;
     }
@@ -272,11 +272,11 @@ class DomainEvent implements Event
     public function setPayload($payload = null)
     {
         $payload = $payload ? $payload : [];
-    	if (!$this->payload) {
-    		$this->payload = new Data($payload);
-    	} elseif (is_array($payload)) {
-    		foreach ($payload as $key => $value) $this->payload->{$key} = $value;
-    	}
+        if (!$this->payload) {
+            $this->payload = new Data($payload);
+        } elseif (is_array($payload)) {
+            foreach ($payload as $key => $value) $this->payload->{$key} = $value;
+        }
         return $this;
     }
 
@@ -295,11 +295,11 @@ class DomainEvent implements Event
     public function setMetadata($metadata = null)
     {
         $metadata = $metadata ? $metadata : [];
-    	if (!$this->metadata) {
-    		$this->metadata = new Data($metadata);
-    	} elseif (is_array($metadata)) {
-    		foreach ($metadata as $key => $value) $this->metadata->{$key} = $value;
-    	}
+        if (!$this->metadata) {
+            $this->metadata = new Data($metadata);
+        } elseif (is_array($metadata)) {
+            foreach ($metadata as $key => $value) $this->metadata->{$key} = $value;
+        }
         return $this;
     }
 
@@ -325,14 +325,14 @@ class DomainEvent implements Event
         return json_decode($value, ! $as_object);
     }
 
-	/**
+    /**
      * Return a timestamp as DateTime object.
      * @param  mixed  $value
      * @return \Illuminate\Support\Carbon
      */
     protected function asDateTime($value = null)
     {
-    	if (!$value) $value = Carbon::now();
+        if (!$value) $value = Carbon::now();
 
         if ($value instanceof Carbon) {
             return $value;
@@ -362,14 +362,14 @@ class DomainEvent implements Event
      */
     public function toArray()
     {
-		return array_map(function ($value) {
-			if ($value instanceof JsonSerializable) {
-				return $value->jsonSerialize();
-			} elseif ($value instanceof DateTimeInterface) {
-				return $value->format('Y-m-d H:i:s.u');
-			} elseif (is_object($value) && method_exists($value, 'toArray')) {
-				return $value->toArray();
-			} 
+        return array_map(function ($value) {
+            if ($value instanceof JsonSerializable) {
+                return $value->jsonSerialize();
+            } elseif ($value instanceof DateTimeInterface) {
+                return $value->format('Y-m-d H:i:s.u');
+            } elseif (is_object($value) && method_exists($value, 'toArray')) {
+                return $value->toArray();
+            } 
             return $value;
         }, get_object_vars($this));
     }
@@ -380,14 +380,14 @@ class DomainEvent implements Event
      */
     public function toSqlData()
     {
-		return array_map(function ($value) {
-			if ($value instanceof JsonSerializable) {
-				return $value->toJson();
-			} elseif ($value instanceof DateTimeInterface) {
-				return $value->format('Y-m-d H:i:s.u');
-			} elseif (is_object($value) || is_array($value)) {
-				return json_encode($value);
-			}
+        return array_map(function ($value) {
+            if ($value instanceof JsonSerializable) {
+                return json_encode($value);
+            } elseif ($value instanceof DateTimeInterface) {
+                return $value->format('Y-m-d H:i:s.u');
+            } elseif (is_object($value) || is_array($value)) {
+                return json_encode($value);
+            }
             return $value;
         }, get_object_vars($this));
     }
@@ -398,6 +398,6 @@ class DomainEvent implements Event
      */
     public function __toString()
     {
-    	return $this->toJson($this->toArray(), true);
+        return $this->toJson($this->toArray(), true);
     }    
 }
