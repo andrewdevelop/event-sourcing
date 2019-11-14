@@ -153,7 +153,7 @@ class EventSourcedRepository implements Repository
 	{
 		if ($this->store) {
 			$recorded_events = array_map(function($event) {
-				if ($event instanceof Event) return $event->toArray();
+				if ($event instanceof Event) return $event->toSqlData();
 				return $event;
 			}, $recorded_events);
 			return $this->store->commit($recorded_events);
