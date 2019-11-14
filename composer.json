@@ -1,0 +1,22 @@
+{
+    "name": "andrewdevelop/event-sourcing",
+    "description": "A minimalist CQRS/ES package for Laravel/Lumen",
+    "type": "package",
+    "require": {
+        "illuminate/container": "^6.0",
+        "nesbot/carbon": "^2.0",
+        "php": "^7.2",
+        "ramsey/uuid": "^3.0"
+    },
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "andrewdevelop",
+            "email": "andrewdevelop@gmail.com"
+        }
+    ],
+    "minimum-stability": "dev",
+    "psr-4": {
+        "Core\\EventSourcing\\": "src/"
+    }
+}
