@@ -29,6 +29,20 @@ class EventSourcingServiceProvider extends ServiceProvider
     }
 
     /**
+     * Bootstrap the application services.
+     * @return void
+     */
+    public function boot()
+    {
+        // Register package's Artisan commands.
+        if ($this->app->runningInConsole()) {
+            $this->commands([
+                \Core\EventSourcing\Console\ReplayEvents::class,
+            ]);
+        }
+    }
+
+    /**
      * Get the services provided by the provider.
      * @return array
      */

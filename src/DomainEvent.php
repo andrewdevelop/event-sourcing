@@ -271,12 +271,7 @@ class DomainEvent implements Event
      */
     public function setPayload($payload = null)
     {
-        $payload = $payload ? $payload : [];
-        if (!$this->payload) {
-            $this->payload = new Data($payload);
-        } elseif (is_array($payload)) {
-            foreach ($payload as $key => $value) $this->payload->{$key} = $value;
-        }
+        $this->fillData('payload', $payload);
         return $this;
     }
 
@@ -294,13 +289,29 @@ class DomainEvent implements Event
      */
     public function setMetadata($metadata = null)
     {
-        $metadata = $metadata ? $metadata : [];
-        if (!$this->metadata) {
-            $this->metadata = new Data($metadata);
-        } elseif (is_array($metadata)) {
-            foreach ($metadata as $key => $value) $this->metadata->{$key} = $value;
-        }
+        $this->fillData('metadata', $metadata);
         return $this;
+    }
+
+    /**
+     * Fills payload or metadata.
+     * @param  string  $target  
+     * @param  mixed   $payload 
+     * @return void
+     */
+    protected function fillData($target, $payload = null)
+    {
+        if (!$this->{$target}) $this->{$target} = new Data();
+
+        $payload = $payload ? $payload : [];
+
+        if (is_string($payload)) {
+            $payload = json_decode($payload, true);
+        } 
+
+        foreach ($payload as $key => $value) {
+            $this->{$target}->{$key} = $value;
+        }
     }
 
 
