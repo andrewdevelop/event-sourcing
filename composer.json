@@ -16,7 +16,9 @@
         }
     ],
     "minimum-stability": "dev",
-    "psr-4": {
-        "Core\\EventSourcing\\": "src/"
+    "autoload": {
+        "psr-4": {
+            "Core\\EventSourcing\\": "src/"
+        }
     }
 }
