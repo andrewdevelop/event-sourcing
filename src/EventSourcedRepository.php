@@ -2,6 +2,7 @@
 
 namespace Core\EventSourcing;
 
+use Core\Contracts\Event;
 use Core\EventSourcing\Contracts\Repository;
 use Core\EventSourcing\Contracts\AggregateRoot;
 use Core\EventSourcing\Contracts\EventDispatcher;
@@ -151,6 +152,10 @@ class EventSourcedRepository implements Repository
 	protected function commitEvents($recorded_events = [])
 	{
 		if ($this->store) {
+			$recorded_events = array_map(function($event) {
+				if ($event instanceof Event) return $event->toArray();
+				return $event;
+			}, $recorded_events);
 			return $this->store->commit($recorded_events);
 		}
 		return $recorded_events;

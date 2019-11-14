@@ -31,7 +31,6 @@ abstract class Projector implements HandlesEvent
 	{
         $delimiters = [".", "-", "_"];
         $method = 'apply' . str_replace($delimiters, '', ucwords($event_name, implode('', $delimiters)));
-		var_dump(get_called_class()."::".$method."()");
 		return $method;
 	}
 } 
