@@ -89,13 +89,6 @@ class DomainEventDispatcher implements EventDispatcher
     }
 
 
-    public function sendToListeners($event_name, $event)
-    {
-    	foreach ($this->listeners as $listener) {
-    		$listener($event_name, $event);
-    	}
-    }
-
     /**
      * Get the event's name.
      * @param  \Core\Contracts\Event  $event
