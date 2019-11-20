@@ -33,21 +33,25 @@ class DomainEventDispatcher implements EventDispatcher
     public function __construct(Container $container)
     {
         $this->container = $container;
+        $this->router = new EventRouter();
     }
 
 
     /**
      * Register an event listener with the dispatcher.
-     * @param  $events
-     * @param  string  $listener
+     * @param  string        $routing_key
+     * @param  string|array  $events
+     * @param  string        $listener
      * @return self
      */
-    public function listen($listener)
+    public function listen($routing_key, $listener)
     {
     	if (is_array($listener)) {
-    		foreach ($listener as $elem) $this->listen($elem);
+    		foreach ($listener as $elem) {
+                $this->listen($routing_key, $elem);
+            }
     	} else {
-    		$this->listeners[] = $this->makeListener($listener);
+    		$this->listeners[$routing_key][] = $this->makeListener($listener);
     	}
         return $this;
     }
@@ -61,12 +65,19 @@ class DomainEventDispatcher implements EventDispatcher
     public function dispatch(Event $event)
     {
         $event_name = $this->getEventName($event);
-        foreach ($this->listeners as $listener) {
-            if ($listener instanceof Closure) {
-                call_user_func($listener, $event_name, $event);
-            } else {
-                call_user_func([$listener, 'handle'], $event_name, $event);
+        foreach ($this->listeners as $routing_key => $listeners) {
+
+            // Filtering events.
+            if (!$this->router->match($routing_key, $event_name)) continue;
+
+            foreach ($listeners as $listener) {
+                if ($listener instanceof Closure) {
+                    call_user_func($listener, $event_name, $event);
+                } else {
+                    call_user_func([$listener, 'handle'], $event_name, $event);
+                }
             }
+
         }
         return $event;
     }
@@ -129,6 +140,7 @@ class DomainEventDispatcher implements EventDispatcher
     {
         return $this->container->make($listener);
     }
+
 
     /**
      * Create a listener as a lambda.
