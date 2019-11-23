@@ -74,7 +74,7 @@ abstract class AggregateRoot implements Contract, JsonSerializable
 	 */
 	protected function __construct()
 	{
-		$this->attributes = [];
+		$this->attributes = new Data();
         $this->initDefaults();
 	}
 
