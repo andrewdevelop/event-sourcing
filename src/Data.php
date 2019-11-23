@@ -35,11 +35,11 @@ final class Data implements ArrayAccess, IteratorAggregate, JsonSerializable
      */
     public function __get($key)
     {
-    	if ($this->offsetExists($key)) {
-    		return $this->offsetGet($key);
-    	} else {
-    		throw new Exception("Property [{$key}] does not exist on this collection instance.");
-    	}
+        if ($this->offsetExists($key)) {
+            return $this->offsetGet($key);
+        } else {
+            throw new Exception("Property [{$key}] does not exist on this collection instance.");
+        }
     }
 
     /**
@@ -50,7 +50,7 @@ final class Data implements ArrayAccess, IteratorAggregate, JsonSerializable
      */
     public function __set($key, $value)
     {
-    	$this->offsetSet($key, $value);
+        $this->offsetSet($key, $value);
     }
 
     /**
@@ -59,14 +59,25 @@ final class Data implements ArrayAccess, IteratorAggregate, JsonSerializable
      */
     public function toArray()
     {
-        return $this->attributes;
+        return array_map(function ($attribute) {
+            if ($attribute instanceof \DateTimeInterface) {
+                return $attribute->format('Y-m-d H:i:s.u');
+            } 
+            elseif ($attribute instanceof \JsonSerializable) {
+                return $attribute->jsonSerialize();
+            } 
+            elseif (is_iterable($attribute)) {
+                return (array) $attribute;
+            }
+            return $attribute;
+        }, $this->attributes);
     }
 
     /**
      * Specify data which should be serialized to JSON
      * @return array
      */
-	public function jsonSerialize() {
+    public function jsonSerialize() {
         return $this->toArray();
     } 
 
