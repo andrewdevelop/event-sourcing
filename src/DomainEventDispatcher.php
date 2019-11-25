@@ -23,7 +23,7 @@ class DomainEventDispatcher implements EventDispatcher
     /**
      * The registered event listeners.
      * @var array
-     */    	
+     */     
     protected $listeners = [];
 
     /**
@@ -46,13 +46,13 @@ class DomainEventDispatcher implements EventDispatcher
      */
     public function listen($routing_key, $listener)
     {
-    	if (is_array($listener)) {
-    		foreach ($listener as $elem) {
+        if (is_array($listener)) {
+            foreach ($listener as $elem) {
                 $this->listen($routing_key, $elem);
             }
-    	} else {
-    		$this->listeners[$routing_key][] = $this->makeListener($listener);
-    	}
+        } else {
+            $this->listeners[$routing_key][] = $this->makeListener($listener);
+        }
         return $this;
     }
 
@@ -91,11 +91,19 @@ class DomainEventDispatcher implements EventDispatcher
     public function replay(Event $event)
     {
         $event_name = $this->getEventName($event);
-        foreach ($this->listeners as $listener) {
-            if (is_subclass_of($listener, ReplaysEvents::class)) {
-                call_user_func([$listener, 'handle'], $event_name, $event);
+
+        foreach ($this->listeners as $routing_key => $listeners) {
+
+            // Filtering events.
+            if (!$this->router->match($routing_key, $event_name)) continue;
+
+            foreach ($listeners as $listener) {
+                if (is_subclass_of($listener, ReplaysEvents::class)) {
+                    call_user_func([$listener, 'handle'], $event_name, $event);
+                }
             }
-        }        
+
+        }
         return $event;
     }
 
@@ -121,7 +129,7 @@ class DomainEventDispatcher implements EventDispatcher
      * @param  string  $listener
      * @return \Closure
      */
-	public function makeListener($listener)
+    public function makeListener($listener)
     {
         if (is_callable($listener)) {
             return $this->createClosureListener($listener);

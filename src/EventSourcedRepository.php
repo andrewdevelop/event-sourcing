@@ -125,8 +125,14 @@ class EventSourcedRepository implements Repository
 		// Automatically resolve Aggregate root class.
 		$aggregate_root_class = '\\'.$recorded_events[0]->aggregate_type;
 
+		$mapped_events = array_map(function($data) {
+			// $d = (array) $data;
+			// dd($data, $d);
+			return new DomainEvent((array) $data);
+		}, $recorded_events);
+
 		$callable = [$aggregate_root_class, 'reconstituteFromHistory'];
-		$instance = call_user_func($callable, $recorded_events, $version);
+		$instance = call_user_func($callable, $mapped_events, $version);
 		return $instance; 
 	}
 
