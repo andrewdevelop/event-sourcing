@@ -38,7 +38,7 @@ final class Data implements ArrayAccess, IteratorAggregate, JsonSerializable
         if ($this->offsetExists($key)) {
             return $this->offsetGet($key);
         } else {
-            throw new Exception("Property [{$key}] does not exist on this collection instance.");
+            return null;
         }
     }
 

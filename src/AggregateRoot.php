@@ -425,8 +425,11 @@ abstract class AggregateRoot implements Contract, JsonSerializable
             elseif ($value instanceof \Konekt\Enum\Enum) {
                 return $value->value();
             }
-            elseif (is_object($value)) {
-                return call_user_func([$value, 'toArray']);
+            elseif (is_object($value) && method_exists($value, 'toArray')) {
+                return $value->toArray();
+            } 
+            elseif ($value instanceof \stdClass) {
+                return (array) $value;
             } 
             return $value;
         }, array_reverse($attributes));
