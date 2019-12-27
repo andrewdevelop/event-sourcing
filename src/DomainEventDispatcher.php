@@ -68,7 +68,7 @@ class DomainEventDispatcher implements EventDispatcher
         foreach ($this->listeners as $routing_key => $listeners) {
 
             // Filtering events.
-            if (!$this->router->match($routing_key, $event_name)) continue;
+            if (!$this->match($routing_key, $event_name)) continue;
 
             foreach ($listeners as $listener) {
                 if ($listener instanceof Closure) {
@@ -80,6 +80,18 @@ class DomainEventDispatcher implements EventDispatcher
 
         }
         return $event;
+    }
+
+
+    /**
+     * Some routing feature.
+     * @param  string $routing_key 
+     * @param  string $event_name  
+     * @return boolean
+     */
+    public function match($routing_key, $event_name)
+    {
+        return $this->router->match($routing_key, $event_name);
     }
 
 

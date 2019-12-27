@@ -81,7 +81,7 @@ class EventSourcedRepository implements Repository
 	public function load($uuid, $version = null)
 	{
 		if ($this->store) {
-			$aggregate_root = $this->loadFromEventStore($uuid, $version = null);
+			$aggregate_root = $this->loadFromEventStore($uuid, $version);
 		} else {
 			throw new Exception('@todo: Reconstitution whithout event store not implemented yet.');
 		}

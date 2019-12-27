@@ -354,7 +354,7 @@ class DomainEvent implements Event
         if (is_numeric($value)) {
             return Carbon::createFromTimestamp($value);
         }
-        return Carbon::createFromFormat('Y-m-d H:i:s.u', $value);
+        return Carbon::parse($value);
     }
 
     /**
