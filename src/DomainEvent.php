@@ -374,11 +374,13 @@ class DomainEvent implements Event
     public function toArray()
     {
         return array_map(function ($value) {
-            if ($value instanceof JsonSerializable) {
-                return $value->jsonSerialize();
-            } elseif ($value instanceof DateTimeInterface) {
+            if ($value instanceof DateTimeInterface) {
                 return $value->format('Y-m-d H:i:s.u');
-            } elseif (is_object($value) && method_exists($value, 'toArray')) {
+            }
+            elseif ($value instanceof JsonSerializable) {
+                return $value->jsonSerialize();
+            }  
+            elseif (is_object($value) && method_exists($value, 'toArray')) {
                 return $value->toArray();
             } 
             return $value;
@@ -392,11 +394,13 @@ class DomainEvent implements Event
     public function toSqlData()
     {
         return array_map(function ($value) {
-            if ($value instanceof JsonSerializable) {
-                return json_encode($value);
-            } elseif ($value instanceof DateTimeInterface) {
+            if ($value instanceof DateTimeInterface) {
                 return $value->format('Y-m-d H:i:s.u');
-            } elseif (is_object($value) || is_array($value)) {
+            }
+            elseif ($value instanceof JsonSerializable) {
+                return json_encode($value);
+            }  
+            elseif (is_object($value) || is_array($value)) {
                 return json_encode($value);
             }
             return $value;
