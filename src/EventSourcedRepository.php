@@ -120,7 +120,7 @@ class EventSourcedRepository implements Repository
 	{
 		$recorded_events = $this->store->load($uuid);
 		// Automatically resolve Aggregate root class.
-		$aggregate_root_class = '\\'.$recorded_events[0]->aggregate_type;
+		$aggregate_root_class = '\\'.data_get($recorded_events, '0.aggregate_type');
 
 		$mapped_events = array_map(function($data) {
 			return new DomainEvent((array) $data);
