@@ -140,11 +140,6 @@ class EventSourcedRepository implements Repository
     protected function commitEvents($recorded_events = [])
     {
         if ($this->store) {
-            $recorded_events = array_filter($recorded_events, function ($event) {
-                if ($event instanceof Event) return $event->storable == true;
-                return true;
-            });
-
             $recorded_events = array_map(function ($event) {
                 if ($event instanceof Event) return $event->toSqlData();
                 return $event;

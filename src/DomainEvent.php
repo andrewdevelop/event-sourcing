@@ -66,14 +66,6 @@ class DomainEvent implements Event
     protected $created_at;
 
     /**
-     * Determine if event will be recorded to the event store.
-     * @version 0.2
-     * @var boolean
-     */
-    protected $storable = true;
-
-
-    /**
      * Instantiate a new event.
      * @param array|object $data 
      */
@@ -301,25 +293,6 @@ class DomainEvent implements Event
     }
 
     /**
-     * @return boolean
-     */
-    public function getStorable()
-    {
-        return $this->storable;
-    }
-
-    /**
-     * @param boolean $storable
-     * @return self
-     */
-    public function setStorable($storable = true)
-    {
-        $this->storable = (boolean) $storable;
-        return $this;
-    }
-    
-
-    /**
      * Fills payload or metadata.
      * @param  string  $target  
      * @param  mixed   $payload 
@@ -400,7 +373,6 @@ class DomainEvent implements Event
     public function toArray()
     {
         $properties = get_object_vars($this);
-        unset($properties['storable']);
         return array_map(function ($value) {
             if ($value instanceof DateTimeInterface) {
                 return $value->format('Y-m-d H:i:s.u');
@@ -422,7 +394,6 @@ class DomainEvent implements Event
     public function toSqlData()
     {
         $properties = get_object_vars($this);
-        unset($properties['storable']);
         return array_map(function ($value) {
             if ($value instanceof DateTimeInterface) {
                 return $value->format('Y-m-d H:i:s.u');
