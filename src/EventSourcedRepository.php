@@ -118,15 +118,16 @@ class EventSourcedRepository implements Repository
 
 	protected function loadFromEventStore($uuid, $version = null)
 	{
+	    /** @var \Generator $recorded_events */
 		$recorded_events = $this->store->load($uuid);
 		// Automatically resolve Aggregate root class.
 		$aggregate_root_class = '\\'.data_get($recorded_events, '0.aggregate_type');
 
-		$mapped_events = array_map(function($data) {
-			return new DomainEvent((array) $data);
-		}, $recorded_events);
+        iterator_apply($recorded_events, function($data) {
+            return new DomainEvent((array) $data);
+        });
 
-        return call_user_func([$aggregate_root_class, 'reconstituteFromHistory'], $mapped_events, $version);
+        return call_user_func([$aggregate_root_class, 'reconstituteFromHistory'], $recorded_events, $version);
 	}
 
 	/**
