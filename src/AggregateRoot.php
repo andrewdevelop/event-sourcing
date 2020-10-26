@@ -167,9 +167,9 @@ abstract class AggregateRoot implements Contract, JsonSerializable
 
     /**
      * Reconstitute current state or given version of aggregate root.
-     * @param  array $history_events
-     * @param  int|null $version
-     * @return Model
+     * @param array $history_events
+     * @param int|null $version
+     * @return AggregateRoot
      */
     public static function reconstituteFromHistory($history_events, $version = null)
     {

@@ -2,6 +2,7 @@
 
 namespace Core\EventSourcing\Console;
 
+use Exception;
 use Illuminate\Console\Command;
 use Illuminate\Contracts\Console\Kernel;
 use Core\EventSourcing\Contracts\EventStore;
@@ -15,7 +16,7 @@ class ReplayEvents extends Command
      * The name and signature of the console command.
      * @var string
      */
-    protected $signature = 'es:replay';
+    protected $signature = 'es:replay {--force}';
 
     /**
      * The console command description.
@@ -56,12 +57,15 @@ class ReplayEvents extends Command
     	// Increase maximum execution time, This can take a while
     	ini_set('max_execution_time', 0);
 
+        $force = $this->option('force');
+
     	if (!$this->event_store) {
     		$this->error("  Cannot recreate read database, because no event store installed.");
     	}
 
-        $this->console->call('migrate:reset');
-        $this->console->call('migrate');
+    	$params = ($force != null) ? ['--force' => true] : [];
+        $this->console->call('migrate:reset', $params);
+        $this->console->call('migrate', $params);
         $this->replay();
     }
 
@@ -78,13 +82,11 @@ class ReplayEvents extends Command
             $this->line("  Aggregate: ".$data->aggregate_id. " - ".$data->aggregate_type);
             
             $event = new DomainEvent((array) $data);
-
             try {
             	$this->dispatcher->replay($event);
             } catch (Exception $e) {
                 $this->error("  Error: ".$e->getMessage());
             }
-            
             $this->line("");
         }
 

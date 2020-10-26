@@ -5,18 +5,19 @@ namespace Core\EventSourcing;
 use Core\Contracts\Event;
 use Core\EventSourcing\Contracts\EventDispatcher;
 use Core\EventSourcing\Contracts\ReplaysEvents;
+use Illuminate\Contracts\Container\BindingResolutionException;
 use Illuminate\Contracts\Container\Container;
 use Exception;
 use Closure;
 
-/*
+/**
  * A very simple domain event dispatcher
  */
 class DomainEventDispatcher implements EventDispatcher
 {
     /**
      * The IoC container instance.
-     * @var \Illuminate\Contracts\Container\Container
+     * @var Container
      */
     protected $container;
 
@@ -27,8 +28,14 @@ class DomainEventDispatcher implements EventDispatcher
     protected $listeners = [];
 
     /**
+     * The event router instance.
+     * @var EventRouter
+     */
+    private $router;
+
+    /**
      * Create a new event dispatcher instance.
-     * @param \Illuminate\Contracts\Container\Container
+     * @param Container $container
      */
     public function __construct(Container $container)
     {
@@ -39,9 +46,8 @@ class DomainEventDispatcher implements EventDispatcher
 
     /**
      * Register an event listener with the dispatcher.
-     * @param  string        $routing_key
-     * @param  string|array  $events
-     * @param  string        $listener
+     * @param string $routing_key
+     * @param string $listener
      * @return self
      */
     public function listen($routing_key, $listener)
@@ -59,8 +65,9 @@ class DomainEventDispatcher implements EventDispatcher
 
     /**
      * Dispatch a single event.
-     * @param  \Core\Contracts\Event  $event
-     * @return \Core\Contracts\Event  $event
+     * @param Event $event
+     * @return Event  $event
+     * @throws Exception
      */
     public function dispatch(Event $event)
     {
@@ -84,7 +91,7 @@ class DomainEventDispatcher implements EventDispatcher
 
 
     /**
-     * Some routing feature.
+     * Some simple routing.
      * @param  string $routing_key 
      * @param  string $event_name  
      * @return boolean
@@ -97,8 +104,8 @@ class DomainEventDispatcher implements EventDispatcher
 
     /**
      * Dispatch projectors only.
-     * @param  \Core\Contracts\Event  $event
-     * @return \Core\Contracts\Event  $event
+     * @param Event $event
+     * @return Event  $event
      */
     public function replay(Event $event)
     {
@@ -122,24 +129,28 @@ class DomainEventDispatcher implements EventDispatcher
 
     /**
      * Get the event's name.
-     * @param  \Core\Contracts\Event  $event
+     * @param Event $event
      * @return string
+     * @throws Exception
      */
     protected function getEventName(Event $event)
     {
         if (method_exists($event, 'getName')) {
             return $event->getName();
+        } elseif (property_exists($event, 'name')) {
+            return $event->name;
         } elseif (defined(get_class($event).'::NAME')) {
             return $event::NAME;
         } else {
             throw new Exception('Event name not defined.');
         }
-    }    
+    }
 
     /**
      * Register an event listener with the dispatcher.
-     * @param  string  $listener
-     * @return \Closure
+     * @param string $listener
+     * @return Closure|object
+     * @throws BindingResolutionException
      */
     public function makeListener($listener)
     {
@@ -153,8 +164,9 @@ class DomainEventDispatcher implements EventDispatcher
 
     /**
      * Create a class based listener using the IoC container.
-     * @param  string  $listener
+     * @param string $listener
      * @return object
+     * @throws BindingResolutionException
      */
     public function createCallableListener($listener)
     {
