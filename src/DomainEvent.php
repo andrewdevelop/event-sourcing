@@ -9,6 +9,19 @@ use DateTimeInterface;
 use InvalidArgumentException;
 use JsonSerializable;
 
+/**
+ * Class DomainEvent
+ * @package Core\EventSourcing
+ * @property string $id
+ * @property string $name
+ * @property int $version
+ * @property string $aggregate_id
+ * @property string $aggregate_type
+ * @property int $aggregate_version
+ * @property object|array $payload
+ * @property object|array $metadata
+ * @property DateTimeInterface|string $created_at
+ */
 class DomainEvent implements Event
 {
     /**
