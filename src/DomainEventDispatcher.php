@@ -4,6 +4,7 @@ namespace Core\EventSourcing;
 
 use Core\Contracts\Event;
 use Core\EventSourcing\Contracts\EventDispatcher;
+use Core\EventSourcing\Contracts\HandlesEvent;
 use Core\EventSourcing\Contracts\ReplaysEvents;
 use Illuminate\Contracts\Container\BindingResolutionException;
 use Illuminate\Contracts\Container\Container;
@@ -15,31 +16,13 @@ use Closure;
  */
 class DomainEventDispatcher implements EventDispatcher
 {
-    /**
-     * The IoC container instance.
-     * @var Container
-     */
-    protected $container;
+    protected array $listeners = [];
+    private readonly EventRouter $router;
 
-    /**
-     * The registered event listeners.
-     * @var array
-     */     
-    protected $listeners = [];
-
-    /**
-     * The event router instance.
-     * @var EventRouter
-     */
-    private $router;
-
-    /**
-     * Create a new event dispatcher instance.
-     * @param Container $container
-     */
-    public function __construct(Container $container)
+    public function __construct(
+        protected readonly Container $container,
+    )
     {
-        $this->container = $container;
         $this->router = new EventRouter();
     }
 
@@ -49,8 +32,9 @@ class DomainEventDispatcher implements EventDispatcher
      * @param string $routing_key
      * @param string $listener
      * @return self
+     * @throws BindingResolutionException
      */
-    public function listen($routing_key, $listener)
+    public function listen(string $routing_key, mixed $listener)
     {
         if (is_array($listener)) {
             foreach ($listener as $elem) {
@@ -96,7 +80,7 @@ class DomainEventDispatcher implements EventDispatcher
      * @param  string $event_name  
      * @return boolean
      */
-    public function match($routing_key, $event_name)
+    public function match(string $routing_key, string $event_name): bool
     {
         return $this->router->match($routing_key, $event_name);
     }
@@ -106,6 +90,7 @@ class DomainEventDispatcher implements EventDispatcher
      * Dispatch projectors only.
      * @param Event $event
      * @return Event  $event
+     * @throws Exception
      */
     public function replay(Event $event)
     {
@@ -139,8 +124,6 @@ class DomainEventDispatcher implements EventDispatcher
             return $event->getName();
         } elseif (property_exists($event, 'name')) {
             return $event->name;
-        } elseif (defined(get_class($event).'::NAME')) {
-            return $event::NAME;
         } else {
             throw new Exception('Event name not defined.');
         }
@@ -149,10 +132,10 @@ class DomainEventDispatcher implements EventDispatcher
     /**
      * Register an event listener with the dispatcher.
      * @param string $listener
-     * @return Closure|object
+     * @return Closure|HandlesEvent
      * @throws BindingResolutionException
      */
-    public function makeListener($listener)
+    public function makeListener(string $listener): Closure|HandlesEvent
     {
         if (is_callable($listener)) {
             return $this->createClosureListener($listener);
@@ -165,10 +148,10 @@ class DomainEventDispatcher implements EventDispatcher
     /**
      * Create a class based listener using the IoC container.
      * @param string $listener
-     * @return object
+     * @return HandlesEvent
      * @throws BindingResolutionException
      */
-    public function createCallableListener($listener)
+    public function createCallableListener(string $listener): HandlesEvent
     {
         return $this->container->make($listener);
     }
@@ -179,7 +162,7 @@ class DomainEventDispatcher implements EventDispatcher
      * @param  Closure $listener 
      * @return Closure
      */
-    public function createClosureListener(Closure $listener)
+    public function createClosureListener(Closure $listener): Closure
     {
         return $listener;
     }

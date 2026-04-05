@@ -7,33 +7,29 @@ use ArrayIterator;
 use IteratorAggregate;
 use Exception;
 use JsonSerializable;
+use Traversable;
 
 final class Data implements ArrayAccess, IteratorAggregate, JsonSerializable
 {
-    /**
-     * The attributes contained in the collection.
-     * @var array
-     */
-    protected $attributes = [];
-
     /**
      * Create a new collection.
      *
      * @param  mixed  $attributes
      * @return void
      */
-    public function __construct($attributes = [])
+    public function __construct(
+        protected array $attributes = [],
+    )
     {
-        $this->attributes = $attributes;
     }
 
     /**
      * Dynamically access attributes.
      * @param  string  $key
      * @return mixed
-     * @throws \Exception
+     * @throws Exception
      */
-    public function __get($key)
+    public function __get(string $key): mixed
     {
         if ($this->offsetExists($key)) {
             return $this->offsetGet($key);
@@ -46,18 +42,18 @@ final class Data implements ArrayAccess, IteratorAggregate, JsonSerializable
      * Dynamically set attribute.
      * @param  string  $key
      * @param  mixed   $value
-     * @throws \Exception
+     * @throws Exception
      */
-    public function __set($key, $value)
+    public function __set(string $key, mixed $value): void
     {
         $this->offsetSet($key, $value);
     }
 
     /**
-     * Get all of the attributes in the collection.
+     * Get all the attributes in the collection.
      * @return array
      */
-    public function toArray()
+    public function toArray(): array
     {
         return array_map(function ($attribute) {
             if ($attribute instanceof \DateTimeInterface) {
@@ -75,64 +71,60 @@ final class Data implements ArrayAccess, IteratorAggregate, JsonSerializable
 
     /**
      * Specify data which should be serialized to JSON
-     * @return array
+     * @return mixed
      */
-    public function jsonSerialize() {
+    public function jsonSerialize(): mixed
+    {
         return $this->toArray();
     } 
 
     /**
      * Get an iterator for the attributes.
-     * @return \ArrayIterator
      */
-    public function getIterator()
+    public function getIterator(): Traversable
     {
         return new ArrayIterator($this->attributes);
     }
 
     /**
      * Determine if an attribute exists at an offset.
-     * @param  mixed  $key
+     * @param mixed $offset
      * @return bool
      */
-    public function offsetExists($key)
+    public function offsetExists(mixed $offset): bool
     {
-        return array_key_exists($key, $this->attributes);
+        return array_key_exists($offset, $this->attributes);
     }
 
     /**
      * Get an attribute at a given offset.
-     * @param  mixed  $key
+     * @param  mixed  $offset
      * @return mixed
      */
-    public function offsetGet($key)
+    public function offsetGet(mixed $offset): mixed
     {
-        return $this->attributes[$key];
+        return $this->attributes[$offset];
     }
 
     /**
      * Set the attribute at a given offset.
-     * @param  mixed  $key
-     * @param  mixed  $value
+     * @param mixed $offset
+     * @param mixed $value
      * @return void
      */
-    public function offsetSet($key, $value)
+    public function offsetSet(mixed $offset, mixed $value): void
     {
-        if (is_null($key)) {
-            $this->attributes[] = $value;
-        } else {
-            $this->attributes[$key] = $value;
-        }
+        $this->attributes[$offset] = $value;
     }
 
     /**
      * Unset the attribute at a given offset.
-     * @param  string  $key
+     * @param mixed $offset
      * @return void
      */
-    public function offsetUnset($key)
+    public function offsetUnset(mixed $offset): void
     {
-        unset($this->attributes[$key]);
+        unset($this->attributes[$offset]);
     }
 
 }

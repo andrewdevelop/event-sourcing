@@ -11,5 +11,5 @@ interface AggregateRoot extends RecordsEvents, AppliesRecordedEvents
 	 * May return a version 4 UUID.
 	 * @return string
 	 */
-	public function getId();
+	public function getId(): string;
 }

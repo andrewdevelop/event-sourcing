@@ -13,36 +13,19 @@ use Psr\EventDispatcher\EventDispatcherInterface;
 
 class EventSourcedRepository implements Repository
 {
-
-    /**
-     * Event store adapter instance.
-     * @var EventStore
-     */
-    protected $store;
-
-    /**
-     * A PSR-14 compatible Event Dispatcher.
-     * @var EventDispatcherInterface
-     */
-    protected $dispatcher;
-
-    /**
-     * Create instance.
-     * @param EventDispatcher $dispatcher
-     * @param EventStore $store
-     */
-    public function __construct(EventDispatcher $dispatcher, EventStore $store = null)
+    public function __construct(
+        protected EventDispatcher $dispatcher,
+        protected EventStore|null $store = null,
+    )
     {
-        $this->dispatcher = $dispatcher;
-        $this->store = $store;
     }
 
     /**
      * Set event store adapter.
-     * @param EventStore $store
+     * @param EventStore|null $store
      * @return EventSourcedRepository
      */
-    public function setEventStore(EventStore $store = null)
+    public function setEventStore(EventStore $store = null): static
     {
         $this->store = $store;
         return $this;
@@ -53,7 +36,7 @@ class EventSourcedRepository implements Repository
      * @param EventDispatcher $dispatcher
      * @return EventSourcedRepository
      */
-    public function setDispatcher(EventDispatcher $dispatcher)
+    public function setDispatcher(EventDispatcher $dispatcher): static
     {
         $this->dispatcher = $dispatcher;
         return $this;

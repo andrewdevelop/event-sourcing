@@ -1,75 +1,70 @@
-<?php 
+<?php
 
 namespace Core\EventSourcing;
 
 use Core\Contracts\Event;
 use Core\EventSourcing\Contracts\AggregateRoot as Contract;
-use Ramsey\Uuid\Uuid;
-use RuntimeException;
 use DateTimeInterface;
 use JsonSerializable;
+use Ramsey\Uuid\Uuid;
+use RuntimeException;
 
 
 abstract class AggregateRoot implements Contract, JsonSerializable
 {
-
     /**
      * Unique identifier.
      * @var string
      */
-    protected $uuid;
+    protected string $uuid;
 
     /**
      * Current version.
      * @var int
      */
-    protected $version = 0;
+    protected int $version = 0;
 
     /**
      * Version loaded form event store.
      * @var integer
      */
-    protected $last_version = 0;
+    protected int $last_version = 0;
 
     /**
      * Indicates if the aggregate exists.
      * @var bool
      */
-    protected $aggregate_exists = false;
+    protected bool $aggregate_exists = false;
 
     /**
      * Determine if aggregate root reconstituted from history.
      * @var boolean
      */
-    protected $is_reconstituted = false;
+    protected bool $is_reconstituted = false;
 
     /**
      * The AR's attributes.
-     * @var array
      */
-    protected $attributes = null;
+    protected Data|null $attributes = null;
 
     /**
      * The changed aggregate root attributes.
      * @var array
      */
-    protected $dirty = [];    
+    protected array $dirty = [];
 
     /**
      * Events that are not committed to the Event Store.
      * @var array
      */
-    protected $recorded_events = [];
+    protected array $recorded_events = [];
 
-
-    protected $applied = [];
-
-    protected $defaults = [];
+    protected array $defaults = [];
 
 
     /**
      * We do not allow public access,
-     * this way we make sure that an aggregate root can only be constructed 
+     * this way we make sure that an aggregate root can only be constructed
      * by static factory
      */
     protected function __construct()
@@ -89,21 +84,21 @@ abstract class AggregateRoot implements Contract, JsonSerializable
 
     /**
      * Create new instance.
-     * @param  string $uuid [uuid added for client generated uuid]
-     * @return \Core\EventSourcing\Contracts\AggregateRoot
+     * @param string|null $uuid [uuid added for client generated uuid]
+     * @return static
      */
-    public static function newInstance($uuid = null)
+    public static function newInstance(?string $uuid = null): static
     {
         $instance = new static();
         if ($uuid) {
             $instance->uuid = $uuid;
         } else {
-            $instance->uuid = Uuid::uuid4()->toString();  
+            $instance->uuid = Uuid::uuid4()->toString();
         }
-        
+
         // Make a hook (internal event)
         if (method_exists(get_called_class(), 'onCreating')) {
-            call_user_func([get_called_class(),'onCreating'], $instance);
+            call_user_func([get_called_class(), 'onCreating'], $instance);
         }
 
         return $instance;
@@ -113,16 +108,16 @@ abstract class AggregateRoot implements Contract, JsonSerializable
      * Get uuid.
      * @return string
      */
-    public function getId()
+    public function getId(): string
     {
         return $this->uuid;
     }
 
     /**
      * Set uuid
-     * @param string $uuid 
+     * @param string $uuid
      */
-    public function setId($uuid)
+    public function setId(string $uuid): void
     {
         $this->uuid = $uuid;
     }
@@ -132,7 +127,7 @@ abstract class AggregateRoot implements Contract, JsonSerializable
      * Get current version of instance.
      * @return string
      */
-    public function getVersion()
+    public function getVersion(): int
     {
         return $this->version;
     }
@@ -141,7 +136,7 @@ abstract class AggregateRoot implements Contract, JsonSerializable
      * Get recorded events.
      * @return array
      */
-    public function getRecordedEvents() 
+    public function getRecordedEvents(): iterable
     {
         return $this->recorded_events;
     }
@@ -149,16 +144,17 @@ abstract class AggregateRoot implements Contract, JsonSerializable
 
     /**
      * Record a new event.
-     * @version 1.1 $event->aggregate_type added for bulk replay/projection
+     * @param Event $event
      * @return void
+     * @version 1.1 $event->aggregate_type added for bulk replay/projection
      */
-    public function recordThat(Event $event)
+    public function recordThat(Event $event): void
     {
         $this->version += 1;
         $event->aggregate_id = $this->getId();
         $event->aggregate_version = $this->version;
         $event->aggregate_type = get_class($this);
-        
+
         $this->apply($event);
 
         $this->recorded_events[] = $event;
@@ -169,9 +165,8 @@ abstract class AggregateRoot implements Contract, JsonSerializable
      * Reconstitute current state or given version of aggregate root.
      * @param array $history_events
      * @param int|null $version
-     * @return AggregateRoot
      */
-    public static function reconstituteFromHistory($history_events, $version = null)
+    public static function reconstituteFromHistory($history_events, $version = null): static
     {
         $instance = self::instantiateForReconstruction();
         $instance->applyRecordedEvents($history_events, $version);
@@ -185,9 +180,9 @@ abstract class AggregateRoot implements Contract, JsonSerializable
 
     /**
      * Create a new instance.
-     * @return self
+     * @return static
      */
-    public static function instantiateForReconstruction()
+    public static function instantiateForReconstruction(): static
     {
         return new static();
     }
@@ -195,22 +190,20 @@ abstract class AggregateRoot implements Contract, JsonSerializable
 
     /**
      * Initializing state (rebuild) from previously recorded events.
-     * @param  iterable  $recorded_events 
-     * @param  int|null $version         
+     * @param iterable $recorded_events
+     * @param int|null $version
      * @return void
      */
-    public function applyRecordedEvents(iterable $recorded_events, $version = null)
+    public function applyRecordedEvents(iterable $recorded_events, ?int $version = null): void
     {
         foreach ($recorded_events as $event) {
 
             // Important! set aggregate id
-            if ($this->uuid == null) {
-                $this->setId($event->aggregate_id);
-            }
+            if (!isset($this->uuid)) $this->setId($event->aggregate_id);
 
             // If we need a concrete version (snapshot) of the Aggregate root
             // we just break the loop at the given version.
-            if ($version != null && $event->aggregate_version > $version) {
+            if ($version !== null && $event->aggregate_version > $version) {
                 break;
             }
 
@@ -222,30 +215,27 @@ abstract class AggregateRoot implements Contract, JsonSerializable
     }
 
     /**
-     * Make aggreagate root capable to handling events and proxy state changes into handler method.
-     * @param  Event  $event 
-     * @return mixed
-     * @throws RuntimeException
+     * Make aggregate root capable to handling events and proxy state changes into handler method.
+     * @param Event $event
+     * @return void
      */
-    public function apply(Event $event)
+    public function apply(Event $event): void
     {
-        $method = $this->getApplyableMethod($event);
+        $method = $this->getApplicableMethod($event);
         if (method_exists($this, $method)) {
-            // I think we can remove this.
-            $this->applied[] = $event;
-            return call_user_func_array([$this, $method], [$event]);
+            call_user_func_array([$this, $method], [$event]);
         } else {
-            throw new RuntimeException("Handler method \"".get_called_class()."::{$method}\" not found.");
+            throw new RuntimeException("Handler method \"" . get_called_class() . "::{$method}\" not found.");
         }
     }
 
     /**
      * Get the method name used for applying the recorded event.
-     * For example: user.registered mapped to applyUserRegistered
-     * @param  Event  $event 
+     * For example: "user.registered" mapped to "applyUserRegistered"
+     * @param Event $event
      * @return string
      */
-    protected function getApplyableMethod(Event $event)
+    protected function getApplicableMethod(Event $event): string
     {
         $delimiters = [".", "-", "_"];
         return 'apply' . str_replace($delimiters, '', ucwords($event->name, implode('', $delimiters)));
@@ -254,10 +244,10 @@ abstract class AggregateRoot implements Contract, JsonSerializable
 
     /**
      * Fill the aggregate root attribute DTO with an array of attributes.
-     * @param  array|ArrayIterator  $attributes
+     * @param iterable $attributes
      * @return void
      */
-    public function fill($attributes)
+    public function fill(iterable $attributes): void
     {
         foreach ($attributes as $key => $value) {
             $this->setAttribute($key, $value);
@@ -266,11 +256,11 @@ abstract class AggregateRoot implements Contract, JsonSerializable
 
     /**
      * Set a given attribute on the attribute DTO.
-     * @param  string  $key
-     * @param  mixed  $value
-     * @return $this
+     * @param string $key
+     * @param mixed $value
+     * @return static
      */
-    public function setAttribute($key, $value)
+    public function setAttribute(string $key, mixed $value): static
     {
         $this->trackAttributeChanges($key, $value);
 
@@ -280,42 +270,43 @@ abstract class AggregateRoot implements Contract, JsonSerializable
 
     /**
      * Get an attribute from the attributes array.
-     * @param  string  $key
+     * @param string $key
      * @return mixed
      */
-    public function getAttribute($key)
+    public function getAttribute(string $key): mixed
     {
-        if (!$key) return;
-
+        if (!$key) return null;
         if ($this->hasAttribute($key)) {
             return $this->attributes[$key];
         }
-    }    
+        return null;
+    }
 
     /**
      * If the attribute exists.
-     * @param  string  $key 
-     * @return boolean      
+     * @param string $key
+     * @return boolean
      */
-    public function hasAttribute($key)
+    public function hasAttribute(string $key): bool
     {
         return $this->attributes->offsetExists($key);
     }
 
     /**
-     * Get all atributes.
-     * @return array 
+     * Get all attributes.
+     * @param null $filter
+     * @return array
      */
-    public function getAttributes($filter = null)
+    public function getAttributes($filter = null): array
     {
         $mapped = [];
         foreach ($this->attributes as $key => $v) {
             if (is_array($filter) && count($filter) > 0) {
                 if (in_array($key, $filter)) {
-                    $mapped[$key] = $this->getAttribute($key); 
+                    $mapped[$key] = $this->getAttribute($key);
                 }
             } else {
-              $mapped[$key] = $this->getAttribute($key);  
+                $mapped[$key] = $this->getAttribute($key);
             }
         }
         return $mapped;
@@ -323,35 +314,37 @@ abstract class AggregateRoot implements Contract, JsonSerializable
 
     /**
      * Determine if the given attribute have been modified.
-     * @param  string $key
+     * @param string $key
      * @return bool
      */
-    public function hasChanged($key)
+    public function hasChanged(string $key): bool
     {
         return array_key_exists($key, $this->dirty);
     }
 
     /**
      * Sync the changed attributes.
-     * @return $this
+     * @param string $key
+     * @param mixed $new_value
+     * @return void
      */
-    protected function trackAttributeChanges($key, $new_value)
+    protected function trackAttributeChanges(string $key, mixed $new_value): void
     {
         if ($this->aggregate_exists) {
             $old_value = $this->getAttribute($key);
             if (!$this->isValuesEquivalent($old_value, $new_value)) {
                 $this->dirty[$key] = [$old_value, $new_value];
-            } 
-        } 
+            }
+        }
     }
 
     /**
      * Determine if the new and old values for a given key are equivalent.
-     * @param  string $key
-     * @param  mixed  $current
+     * @param mixed $old_value
+     * @param mixed $new_value
      * @return bool
      */
-    public function isValuesEquivalent($old_value, $new_value)
+    public function isValuesEquivalent(mixed $old_value, mixed $new_value): bool
     {
         if ($new_value === $old_value) {
             return true;
@@ -359,16 +352,16 @@ abstract class AggregateRoot implements Contract, JsonSerializable
             return false;
         }
         // elseif {} ... arrays or objects ?
-        return is_numeric($new_value) && is_numeric($old_value) && strcmp((string) $new_value, (string) $old_value) === 0;
+        return is_numeric($new_value) && is_numeric($old_value) && strcmp((string)$new_value, (string)$old_value) === 0;
     }
 
     /**
      * Determine if the new and old values for a given key are equivalent.
-     * @param  string  $key   
-     * @param  mixed  $value 
+     * @param string $key
+     * @param mixed $value
      * @return boolean
      */
-    public function isAttributeEquivalent($key, $value)
+    public function isAttributeEquivalent(string $key, mixed $value): bool
     {
         $old_value = $this->getAttribute($key);
         return $this->isValuesEquivalent($old_value, $value);
@@ -376,10 +369,10 @@ abstract class AggregateRoot implements Contract, JsonSerializable
 
     /**
      * Dynamically retrieve attributes on the aggreagate root.
-     * @param  string  $key
+     * @param string $key
      * @return mixed
      */
-    public function __get($key)
+    public function __get(string $key): mixed
     {
         if (property_exists($this, $key)) return $this->{$key};
         return $this->getAttribute($key);
@@ -388,11 +381,11 @@ abstract class AggregateRoot implements Contract, JsonSerializable
 
     /**
      * Dynamically set attributes on the aggreagate root.
-     * @param  string  $key
-     * @param  mixed  $value
+     * @param string $key
+     * @param mixed $value
      * @return void
      */
-    public function __set($key, $value)
+    public function __set(string $key, mixed $value): void
     {
         if (property_exists($this, $key)) {
             $this->{$key} = $value;
@@ -405,12 +398,12 @@ abstract class AggregateRoot implements Contract, JsonSerializable
      * Convert the instance to an array.
      * @return array
      */
-    public function toArray()
+    public function toArray(): array
     {
         $attributes = $this->attributes;
         if (is_object($attributes)) {
             $attributes = call_user_func([$attributes, 'toArray']);
-        } 
+        }
 
         $attributes['version'] = $this->version;
         $attributes['uuid'] = $this->uuid;
@@ -418,19 +411,15 @@ abstract class AggregateRoot implements Contract, JsonSerializable
         return array_map(function ($value) {
             if ($value instanceof DateTimeInterface) {
                 return $value->format('Y-m-d H:i:s.u');
-            } 
-            elseif ($value instanceof JsonSerializable) {
+            } elseif ($value instanceof JsonSerializable) {
                 return $value->jsonSerialize();
-            }
-            elseif ($value instanceof \Konekt\Enum\Enum) {
+            } elseif (is_object($value) && method_exists($value, 'value')) {
                 return $value->value();
-            }
-            elseif (is_object($value) && method_exists($value, 'toArray')) {
+            } elseif (is_object($value) && method_exists($value, 'toArray')) {
                 return $value->toArray();
-            } 
-            elseif ($value instanceof \stdClass) {
-                return (array) $value;
-            } 
+            } elseif ($value instanceof \stdClass) {
+                return (array)$value;
+            }
             return $value;
         }, array_reverse($attributes));
     }
@@ -438,16 +427,10 @@ abstract class AggregateRoot implements Contract, JsonSerializable
 
     /**
      * Convert the object into something JSON serializable.
-     * @return array
+     * @return mixed
      */
-    public function jsonSerialize()
+    public function jsonSerialize(): mixed
     {
         return $this->toArray();
-    }
-
-    public function __clone()
-    {
-        $this->recorded_events = $this->applied;
-        $this->applied = [];
     }
 }

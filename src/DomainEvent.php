@@ -28,68 +28,68 @@ class DomainEvent implements Event
      * UUID 4
      * @var string
      */
-    protected $id;
+    protected string $id;
 
     /**
      * Event name
      * @var string
      */
-    protected $name;
+    protected string $name;
 
     /**
      * Event versioning.
      * @var integer
      */
-    protected $version;
+    protected int $version;
 
     /**
      * Aggregate UUID.
      * @var string
      */
-    protected $aggregate_id;
+    protected string $aggregate_id;
 
     /**
      * Class of aggregate root.
      * @var string
      */
-    protected $aggregate_type;
+    protected string $aggregate_type;
 
     /**
      * Aggregate version.
      * @var int
      */
-    protected $aggregate_version;
+    protected int $aggregate_version;
 
     /**
      * Event payload
-     * @var array|object
+     * @var Data|null
      */
-    protected $payload;
+    protected Data|null $payload = null;
 
     /**
      * Event meta
-     * @var array|object
+     * @var Data|null
      */
-    protected $metadata;
+    protected Data|null $metadata = null;
 
     /**
      * Event created at
-     * @var Carbon
+     * @var DateTimeInterface
      */
-    protected $created_at;
+    protected DateTimeInterface $created_at;
 
     /**
      * Instantiate a new event.
      * @param array|object $data 
      */
-    public function __construct($data = [])
+    public function __construct(mixed $data = [])
     {
-        $keys = array_keys(get_object_vars($this));
+        $keys = array_keys(get_class_vars(static::class));
         foreach ($keys as $key) {
-            $value = isset($data[$key]) ? $data[$key] : null;
+            $value = $data[$key] ?? null;
             $this->setAttribute($key, $value);
         }
-        if (!$this->name) {
+        if (empty($this->name)) {
             throw new InvalidArgumentException('Event name not defined.');
         }
     }
@@ -99,9 +99,10 @@ class DomainEvent implements Event
      * @param  string $key 
      * @return mixed      
      */
-    public function __get($key)
+    public function __get(string $key): mixed
     {
         if (property_exists($this, $key)) return $this->getAttribute($key);
+        return null;
     }
 
     /**
@@ -109,7 +110,7 @@ class DomainEvent implements Event
      * @param string $key
      * @param mixed $value 
      */
-    public function __set($key, $value)
+    public function __set(string $key, mixed $value): void
     {
         if (property_exists($this, $key)) $this->setAttribute($key, $value);
     }
@@ -120,31 +121,29 @@ class DomainEvent implements Event
      * @param  string $key 
      * @return mixed
      */
-    protected function getAttribute($key)
+    protected function getAttribute(string $key): mixed
     {
         $method = 'get' . str_replace('_', '', ucwords($key, '_'));
         if (method_exists($this, $method)) return call_user_func([$this, $method]);
-        return $this;
+        return $this->{$key};
     }
 
     /**
      * Set a given attribute.
      * @param  string  $key
      * @param  mixed  $value
-     * @return self
      */
-    protected function setAttribute($key, $value = null)
+    protected function setAttribute(string $key, mixed $value): void
     {
         $method = 'set' . str_replace('_', '', ucwords($key, '_'));
         if (method_exists($this, $method)) call_user_func([$this, $method], $value);
-        return $this;
     }
 
 
     /**
      * @return string
      */
-    public function getId()
+    public function getId(): string
     {
         return $this->id;
     }
@@ -153,16 +152,16 @@ class DomainEvent implements Event
      * @param string $id
      * @return self
      */
-    public function setId($id)
+    public function setId(?string $id = null): self
     {
-        $this->id = $id ? $id : (string) Uuid::uuid4();
+        $this->id = $id ?: (string) Uuid::uuid4();
         return $this;
     }
 
     /**
      * @return string
      */
-    public function getName()
+    public function getName(): string
     {
         return $this->name;
     }
@@ -172,7 +171,7 @@ class DomainEvent implements Event
      *
      * @return self
      */
-    public function setName($name = null)
+    public function setName($name = null): self
     {
         if ($name) $this->name = $name;
         return $this;
@@ -181,141 +180,136 @@ class DomainEvent implements Event
     /**
      * @return DateTimeInterface
      */
-    public function getCreatedAt()
+    public function getCreatedAt(): DateTimeInterface
     {
         return $this->created_at;
     }
 
     /**
-     * @param Carbon $created_at
+     * @param DateTimeInterface|string|null $created_at
      * @return self
      */
-    public function setCreatedAt($created_at = null)
+    public function setCreatedAt(DateTimeInterface|string|null $created_at = null): self
     {
         if (!$created_at) $created_at = Carbon::now();
-        $this->created_at = $this->fromDateTime($created_at);
+        $this->created_at = $this->asDateTime($created_at);
         return $this;
     }
 
     /**
      * @return integer
      */
-    public function getVersion()
+    public function getVersion(): int
     {
         return $this->version;
     }
 
     /**
      * @param integer $version
-     * @return self
      */
-    public function setVersion($version = 0)
+    public function setVersion(?int $version = 0): void
     {
-        $this->version = intval($version ? $version : 1);
-        return $this;
+        $this->version = $version ?: 1;
     }
 
     /**
      * @return string
      */
-    public function getAggregateId()
+    public function getAggregateId(): string
     {
         return $this->aggregate_id;
     }
 
     /**
      * @param string $aggregate_id
-     * @return self
      */
-    public function setAggregateId($aggregate_id = null)
+    public function setAggregateId(?string $aggregate_id = null): void
     {
-        $this->aggregate_id = $aggregate_id;
-        return $this;
+        if ($aggregate_id !== null) {
+            $this->aggregate_id = $aggregate_id;
+        }
     }
 
     /**
      * @return string
      */
-    public function getAggregateType()
+    public function getAggregateType(): string
     {
         return $this->aggregate_type;
     }
 
     /**
-     * @param string $aggregate_type
-     * @return self
+     * @param string|null $aggregate_type
+     * @return void
      */
-    public function setAggregateType($aggregate_type = null)
+    public function setAggregateType(?string $aggregate_type = null): void
     {
-        $this->aggregate_type = $aggregate_type;
-        return $this;
+        if ($aggregate_type !== null) {
+            $this->aggregate_type = $aggregate_type;
+        }
     }
 
     /**
      * @return int
      */
-    public function getAggregateVersion()
+    public function getAggregateVersion(): int
     {
         return $this->aggregate_version;
     }
 
     /**
-     * @param int $aggregate_version
-     * @return self
+     * @param int|null $aggregate_version
+     * @return void
      */
-    public function setAggregateVersion($aggregate_version = null)
+    public function setAggregateVersion(?int $aggregate_version = null): void
     {
         $this->aggregate_version = intval($aggregate_version);
-        return $this;
     }
 
     /**
-     * @return array|object
+     * @return Data
      */
-    public function getPayload()
+    public function getPayload(): Data
     {
         return $this->payload;
     }
 
     /**
      * @param array|object $payload
-     * @return self
+     * @return void
      */
-    public function setPayload($payload = null)
+    public function setPayload(mixed $payload = null): void
     {
         $this->fillData('payload', $payload);
-        return $this;
     }
 
     /**
-     * @return array|object
+     * @return Data
      */
-    public function getMetadata()
+    public function getMetadata(): Data
     {
         return $this->metadata;
     }
 
     /**
      * @param array|object $metadata
-     * @return self
      */
-    public function setMetadata($metadata = null)
+    public function setMetadata(mixed $metadata = null): void
     {
         $this->fillData('metadata', $metadata);
-        return $this;
     }
 
     /**
      * Fills payload or metadata.
-     * @param  string  $target  
-     * @param  mixed   $payload 
+     * @param string $target
+     * @param mixed|null $payload
      * @return void
      */
-    protected function fillData($target, $payload = null)
+    protected function fillData(string $target, mixed $payload = null): void
     {
         if (!$this->{$target}) $this->{$target} = new Data();
 
-        $payload = $payload ? $payload : [];
+        $payload = $payload ?: [];
 
         if (is_string($payload)) {
             $payload = json_decode($payload, true);
@@ -339,21 +333,21 @@ class DomainEvent implements Event
 
     /**
      * Decode the given JSON back into an array or object.
-     * @param  string  $value
-     * @param  bool  $as_object
+     * @param string $value
+     * @param bool $as_object
      * @return mixed
      */
-    public function fromJson($value, $as_object = false)
+    public function fromJson(string $value, bool $as_object = false): mixed
     {
         return json_decode($value, ! $as_object);
     }
 
     /**
      * Return a timestamp as DateTime object.
-     * @param  mixed  $value
+     * @param mixed|null $value
      * @return Carbon
      */
-    protected function asDateTime($value = null)
+    protected function asDateTime(mixed $value = null): DateTimeInterface
     {
         if (!$value) $value = Carbon::now();
 
@@ -371,10 +365,8 @@ class DomainEvent implements Event
 
     /**
      * Convert a DateTime to a storable string.
-     * @param  \DateTime|int  $value
-     * @return string
      */
-    public function fromDateTime($value)
+    public function fromDateTime(mixed $value): string
     {
         return $this->asDateTime($value);
     }
@@ -383,7 +375,7 @@ class DomainEvent implements Event
      * Convert the instance to an array.
      * @return array
      */
-    public function toArray()
+    public function toArray(): array
     {
         $properties = get_object_vars($this);
         return array_map(function ($value) {
@@ -404,7 +396,7 @@ class DomainEvent implements Event
      * Convert the instance to an array.
      * @return array
      */
-    public function toSqlData()
+    public function toSqlData(): array
     {
         $properties = get_object_vars($this);
         return array_map(function ($value) {
