@@ -2,30 +2,22 @@
 
 namespace Core\EventSourcing;
 
-use Illuminate\Support\ServiceProvider;
-use Core\EventSourcing\Contracts\Repository;
-use Core\EventSourcing\EventSourcedRepository;
+use Core\EventSourcing\Console\ReplayEvents;
 use Core\EventSourcing\Contracts\EventDispatcher;
-use Core\EventSourcing\DomainEventDispatcher;
+use Core\EventSourcing\Contracts\Repository;
+use Illuminate\Contracts\Support\DeferrableProvider;
+use Illuminate\Support\ServiceProvider;
 
-class EventSourcingServiceProvider extends ServiceProvider
+class EventSourcingServiceProvider extends ServiceProvider implements DeferrableProvider
 {
-    
-    /**
-     * Indicates if loading of the provider is deferred.
-     * @var bool
-     */
-    protected $defer = true;
-
-
     /**
      * Register the service.
      * @return void
      */
     public function register()
-    {		
+    {
         $this->app->singleton(EventDispatcher::class, DomainEventDispatcher::class);
-		$this->app->singleton(Repository::class, EventSourcedRepository::class);
+        $this->app->singleton(Repository::class, EventSourcedRepository::class);
     }
 
     /**
@@ -37,7 +29,7 @@ class EventSourcingServiceProvider extends ServiceProvider
         // Register package's Artisan commands.
         if ($this->app->runningInConsole()) {
             $this->commands([
-                \Core\EventSourcing\Console\ReplayEvents::class,
+                ReplayEvents::class,
             ]);
         }
     }

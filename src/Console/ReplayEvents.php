@@ -16,41 +16,32 @@ class ReplayEvents extends Command
      * The name and signature of the console command.
      * @var string
      */
-    protected $signature = 'es:replay {--force}';
+    protected $signature = 'es:replay 
+                            {--force : Force the operation to run when in production}
+                            {-q|--quiet : Do not output any message}';
 
     /**
      * The console command description.
      * @var string
      */
-    protected $description = 'Regenerate read models from event store.';    
-
-    /**
-     * Event store instance.
-     * @var [type]
-     */
-    protected $event_store;
-
-    /**
-     * The Artisan instance.
-     * @var [type]
-     */
-    protected $console;
+    protected $description = 'Regenerate read models from event store.';
 
     /**
      * Create a new command instance.
      */
-    public function __construct(EventDispatcher $dispatcher, Kernel $console, EventStore $event_store = null)
+    public function __construct(
+        protected EventDispatcher $dispatcher,
+        protected Kernel $console,
+        protected EventStore|null $event_store = null,
+    )
     {
     	parent::__construct();
-        $this->dispatcher = $dispatcher;
-        $this->console = $console;
-        $this->event_store = $event_store;
     }
 
 
     /**
      * Execute the console command.
-     * @return mixed
+     * @return void
      */
     public function handle()
     {
@@ -58,6 +49,7 @@ class ReplayEvents extends Command
     	ini_set('max_execution_time', 0);
 
         $force = $this->option('force');
+        $quiet = $this->option('quiet');
 
     	if (!$this->event_store) {
     		$this->error("  Cannot recreate read database, because no event store installed.");
@@ -66,21 +58,22 @@ class ReplayEvents extends Command
     	$params = ($force != null) ? ['--force' => true] : [];
         $this->console->call('migrate:reset', $params);
         $this->console->call('migrate', $params);
-        $this->replay();
+        $this->replay($quiet);
     }
 
 
-    public function replay()
+    public function replay(bool $quiet): void
     {
         $events = $this->event_store->loadAll();
 
         $this->line("");
 
         foreach ($events as $data) {
-            $this->info('  Replay event: '.$data->name);
-            $this->line('  ID: '.$data->name.' '.$data->id.' Time: '.$data->created_at);
-            $this->line("  Aggregate: ".$data->aggregate_id. " - ".$data->aggregate_type);
-            
+            if (!$quiet) {
+                $this->info('  Replay event: '.$data->name);
+                $this->line('  ID: '.$data->name.' '.$data->id.' Time: '.$data->created_at);
+                $this->line("  Aggregate: ".$data->aggregate_id. " - ".$data->aggregate_type);
+            }
             $event = new DomainEvent((array) $data);
             try {
             	$this->dispatcher->replay($event);
