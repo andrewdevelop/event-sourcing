@@ -2,17 +2,23 @@
 
 namespace Core\EventSourcing;
 
+use Closure;
 use Core\Contracts\Event;
 use Core\EventSourcing\Contracts\AggregateRoot;
 use Core\EventSourcing\Contracts\EventDispatcher;
 use Core\EventSourcing\Contracts\EventStore;
 use Core\EventSourcing\Contracts\Repository;
-use Exception;
+use Core\EventSourcing\Contracts\Transactional;
 use Illuminate\Support\LazyCollection;
-use Psr\EventDispatcher\EventDispatcherInterface;
+use RuntimeException;
+use Throwable;
 
 class EventSourcedRepository implements Repository
 {
+    protected Closure|null $on_begin = null;
+    protected Closure|null $on_commit = null;
+    protected Closure|null $on_rollback = null;
+
     public function __construct(
         protected EventDispatcher $dispatcher,
         protected EventStore|null $store = null,
@@ -45,10 +51,10 @@ class EventSourcedRepository implements Repository
     /**
      * Create a new instance of an aggregate root.
      * @param string $aggregate_root_class
-     * @param string $uuid Aggregate root identifier.
+     * @param string|null $uuid Aggregate root identifier.
      * @return AggregateRoot
      */
-    public function init($aggregate_root_class, $uuid = null)
+    public function init(string $aggregate_root_class, ?string $uuid = null): AggregateRoot
     {
         return call_user_func([$aggregate_root_class, 'newInstance'], $uuid);
     }
@@ -58,9 +64,9 @@ class EventSourcedRepository implements Repository
      * @param string $aggregate_uuid
      * @param null|int $version
      * @return AggregateRoot
-     * @throws Exception
+     * @throws Throwable
      */
-    public function find($aggregate_uuid, $version = null)
+    public function find(string $aggregate_uuid, ?int $version = null): AggregateRoot
     {
         return $this->load($aggregate_uuid, $version);
     }
@@ -70,19 +76,19 @@ class EventSourcedRepository implements Repository
      * @param string $uuid Aggregate root identifier.
      * @param null|int $version
      * @return AggregateRoot
-     * @throws Exception
+     * @throws RuntimeException
      */
-    public function load($uuid, $version = null)
+    public function load(string $uuid, ?int $version = null): AggregateRoot
     {
         if ($this->store) {
             $aggregate_root = $this->loadFromEventStore($uuid, $version);
         } else {
-            throw new Exception('@todo: Reconstitution without event store not implemented yet.');
+            throw new RuntimeException('@todo: Reconstitution without event store not implemented yet.');
         }
         return $aggregate_root;
     }
 
-    protected function loadFromEventStore($uuid, $version = null)
+    protected function loadFromEventStore(string $uuid, ?int $version = null)
     {
         /** @var LazyCollection $recorded_events */
         $recorded_events = $this->store->load($uuid);
@@ -99,28 +105,49 @@ class EventSourcedRepository implements Repository
 
     /**
      * Fire all events and commit to the Event store
-     * @param AggregateRoot $aggregate_root
-     * @return AggregateRoot|null
+     * @param AggregateRoot $aggregate
+     * @return AggregateRoot
+     * @throws Throwable
      */
-    public function save(AggregateRoot $aggregate_root)
+    public function save(AggregateRoot $aggregate): AggregateRoot
     {
-        $recorded_events = $aggregate_root->getRecordedEvents();
+        $recorded_events = $aggregate->getRecordedEvents();
 
-        $commited = $this->commitEvents($recorded_events);
+        if (empty($recorded_events)) {
+            return $aggregate;
+        }
 
-        $dispatched = $this->dispatchEvents($recorded_events);
+        if ($this->store instanceof Transactional) $this->store->beginTransaction();
+        if (is_callable($this->on_begin)) $this->on_begin->__invoke($recorded_events);
 
-        if ($commited && $dispatched) {
-            return $aggregate_root;
+        try {
+            $ok = $this->commitEvents($recorded_events);
+            if (!$ok) {
+                throw new RuntimeException('Failed to commit events to the EventStore.');
+            }
+
+            $ok = $this->dispatchEvents($recorded_events);
+            if (!$ok) {
+                throw new RuntimeException('Failed to dispatch events.');
+            }
+
+            if ($this->store instanceof Transactional) $this->store->commitTransaction();
+            if (is_callable($this->on_commit)) $this->on_commit->__invoke($recorded_events);
+
+            return $aggregate;
+
+        } catch (Throwable $e) {
+            if ($this->store instanceof Transactional) $this->store->rollbackTransaction();
+            if (is_callable($this->on_rollback)) $this->on_rollback->__invoke($recorded_events, $e);
+            throw $e;
         }
     }
 
     /**
      * @param array $recorded_events
      * @return boolean
-     * @todo Need some error handling.
      */
-    protected function commitEvents($recorded_events = [])
+    protected function commitEvents(array $recorded_events = []): bool
     {
         if ($this->store) {
             $recorded_events = array_map(function ($event) {
@@ -135,13 +162,30 @@ class EventSourcedRepository implements Repository
     /**
      * @param array $recorded_events
      * @return boolean
-     * @todo Need some error handling.
      */
-    protected function dispatchEvents($recorded_events = [])
+    protected function dispatchEvents(array $recorded_events = []): bool
     {
         foreach ($recorded_events as $event) {
             $this->dispatcher->dispatch($event);
         }
         return true;
+    }
+
+    public function onBeginTx(Closure|null $callback = null): void
+    {
+        if (!is_callable($callback)) throw new \InvalidArgumentException('Callback must be a valid Closure.');
+        $this->on_begin = $callback;
+    }
+
+    public function onCommitTx(Closure|null $callback = null): void
+    {
+        if (!is_callable($callback)) throw new \InvalidArgumentException('Callback must be a valid Closure.');
+        $this->on_commit = $callback;
+    }
+
+    public function onRollbackTx(Closure|null $callback = null): void
+    {
+        if (!is_callable($callback)) throw new \InvalidArgumentException('Callback must be a valid Closure.');
+        $this->on_rollback = $callback;
     }
 }
