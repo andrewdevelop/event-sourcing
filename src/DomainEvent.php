@@ -34,7 +34,7 @@ class DomainEvent implements Event
      * Event name
      * @var string
      */
-    public $name;
+    protected $name;
 
     /**
      * Event versioning.
