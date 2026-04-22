@@ -17,8 +17,7 @@ class ReplayEvents extends Command
      * @var string
      */
     protected $signature = 'es:replay 
-                            {--force : Force the operation to run when in production}
-                            {-q|--quiet : Do not output any message}';
+                            {--force : Force the operation to run when in production}';
 
     /**
      * The console command description.
