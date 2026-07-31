@@ -2,9 +2,12 @@
 
 namespace Core\EventSourcing;
 
+use Core\EventSourcing\Console\ForgetDataSubject;
 use Core\EventSourcing\Console\ReplayEvents;
 use Core\EventSourcing\Contracts\EventDispatcher;
+use Core\EventSourcing\Contracts\KeyRing;
 use Core\EventSourcing\Contracts\Repository;
+use Core\EventSourcing\Pii\DeveloperKeyRing;
 use Illuminate\Contracts\Support\DeferrableProvider;
 use Illuminate\Support\ServiceProvider;
 
@@ -30,6 +33,7 @@ class EventSourcingServiceProvider extends ServiceProvider implements Deferrable
         if ($this->app->runningInConsole()) {
             $this->commands([
                 ReplayEvents::class,
+                ForgetDataSubject::class,
             ]);
         }
     }

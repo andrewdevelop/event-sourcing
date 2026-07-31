@@ -1,13 +1,13 @@
-<?php 
+<?php
 
 namespace Core\EventSourcing;
 
-use Core\Contracts\Event;
-use Ramsey\Uuid\Uuid;
 use Carbon\Carbon;
+use Core\Contracts\Event;
 use DateTimeInterface;
 use InvalidArgumentException;
 use JsonSerializable;
+use Ramsey\Uuid\Uuid;
 
 /**
  * Class DomainEvent
@@ -21,6 +21,7 @@ use JsonSerializable;
  * @property object|array $payload
  * @property object|array $metadata
  * @property DateTimeInterface|string $created_at
+ * @property string|null $pii_id
  */
 class DomainEvent implements Event
 {
@@ -79,8 +80,16 @@ class DomainEvent implements Event
     protected DateTimeInterface $created_at;
 
     /**
+     * Identifier of the data subject (person) whose personal data this event carries.
+     * Optional: not every event contains PII. Used to support GDPR/CCPA erasure via
+     * crypto-shredding, see Pii\PiiAnonymizer and GDPR_CCPA.md.
+     * @var string|null
+     */
+    protected ?string $pii_id = null;
+
+    /**
      * Instantiate a new event.
-     * @param array|object $data 
+     * @param array|object $data
      */
     public function __construct(mixed $data = [])
     {
@@ -95,9 +104,19 @@ class DomainEvent implements Event
     }
 
     /**
+     * Deep-clone the payload/metadata bags, so mutating a clone (e.g. sealing PII
+     * fields for storage) can never leak back into the original event instance.
+     */
+    public function __clone(): void
+    {
+        if ($this->payload) $this->payload = clone $this->payload;
+        if ($this->metadata) $this->metadata = clone $this->metadata;
+    }
+
+    /**
      * Magic getter.
-     * @param  string $key 
-     * @return mixed      
+     * @param string $key
+     * @return mixed
      */
     public function __get(string $key): mixed
     {
@@ -108,7 +127,7 @@ class DomainEvent implements Event
     /**
      * Magic setter.
      * @param string $key
-     * @param mixed $value 
+     * @param mixed $value
      */
     public function __set(string $key, mixed $value): void
     {
@@ -118,7 +137,7 @@ class DomainEvent implements Event
 
     /**
      * Get attribute.
-     * @param  string $key 
+     * @param string $key
      * @return mixed
      */
     protected function getAttribute(string $key): mixed
@@ -130,8 +149,8 @@ class DomainEvent implements Event
 
     /**
      * Set a given attribute.
-     * @param  string  $key
-     * @param  mixed  $value
+     * @param string $key
+     * @param mixed $value
      */
     protected function setAttribute(string $key, mixed $value): void
     {
@@ -149,12 +168,12 @@ class DomainEvent implements Event
     }
 
     /**
-     * @param string $id
+     * @param string|null $id
      * @return self
      */
     public function setId(?string $id = null): self
     {
-        $this->id = $id ?: (string) Uuid::uuid4();
+        $this->id = $id ?: (string)Uuid::uuid4();
         return $this;
     }
 
@@ -267,6 +286,23 @@ class DomainEvent implements Event
     }
 
     /**
+     * @return string|null
+     */
+    public function getPiiId(): ?string
+    {
+        return $this->pii_id;
+    }
+
+    /**
+     * @param string|null $pii_id
+     * @return void
+     */
+    public function setPiiId(?string $pii_id = null): void
+    {
+        $this->pii_id = $pii_id;
+    }
+
+    /**
      * @return Data
      */
     public function getPayload(): Data
@@ -313,7 +349,7 @@ class DomainEvent implements Event
 
         if (is_string($payload)) {
             $payload = json_decode($payload, true);
-        } 
+        }
 
         foreach ($payload as $key => $value) {
             $this->{$target}->{$key} = $value;
@@ -323,7 +359,7 @@ class DomainEvent implements Event
 
     /**
      * Encode the given value as JSON.
-     * @param  mixed  $value
+     * @param mixed $value
      * @return string
      */
     public function toJson($value)
@@ -339,7 +375,7 @@ class DomainEvent implements Event
      */
     public function fromJson(string $value, bool $as_object = false): mixed
     {
-        return json_decode($value, ! $as_object);
+        return json_decode($value, !$as_object);
     }
 
     /**
@@ -381,13 +417,11 @@ class DomainEvent implements Event
         return array_map(function ($value) {
             if ($value instanceof DateTimeInterface) {
                 return $value->format('Y-m-d H:i:s.u');
-            }
-            elseif ($value instanceof JsonSerializable) {
+            } elseif ($value instanceof JsonSerializable) {
                 return $value->jsonSerialize();
-            }  
-            elseif (is_object($value) && method_exists($value, 'toArray')) {
+            } elseif (is_object($value) && method_exists($value, 'toArray')) {
                 return $value->toArray();
-            } 
+            }
             return $value;
         }, $properties);
     }
@@ -402,11 +436,9 @@ class DomainEvent implements Event
         return array_map(function ($value) {
             if ($value instanceof DateTimeInterface) {
                 return $value->format('Y-m-d H:i:s.u');
-            }
-            elseif ($value instanceof JsonSerializable) {
+            } elseif ($value instanceof JsonSerializable) {
                 return json_encode($value);
-            }  
-            elseif (is_object($value) || is_array($value)) {
+            } elseif (is_object($value) || is_array($value)) {
                 return json_encode($value);
             }
             return $value;
@@ -415,10 +447,10 @@ class DomainEvent implements Event
 
     /**
      * Serialize event to JSON
-     * @return string 
+     * @return string
      */
     public function __toString()
     {
         return $this->toJson($this->toArray());
-    }    
+    }
 }

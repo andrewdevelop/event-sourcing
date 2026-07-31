@@ -8,7 +8,9 @@ use Core\EventSourcing\Contracts\AggregateRoot;
 use Core\EventSourcing\Contracts\EventDispatcher;
 use Core\EventSourcing\Contracts\EventStore;
 use Core\EventSourcing\Contracts\Repository;
+use Core\EventSourcing\Contracts\RequestsErasure;
 use Core\EventSourcing\Contracts\Transactional;
+use Core\EventSourcing\Pii\PiiAnonymizer;
 use Illuminate\Support\LazyCollection;
 use RuntimeException;
 use Throwable;
@@ -22,6 +24,7 @@ class EventSourcedRepository implements Repository
     public function __construct(
         protected EventDispatcher $dispatcher,
         protected EventStore|null $store = null,
+        protected PiiAnonymizer|null $anonymizer = null,
     )
     {
     }
@@ -97,7 +100,11 @@ class EventSourcedRepository implements Repository
         $aggregate_root_class = '\\' . data_get($recorded_events->first(), 'aggregate_type');
 
         $recorded_events = $recorded_events->map(function ($data) {
-            return new DomainEvent((array)$data);
+            $event = new DomainEvent((array)$data);
+            // Decrypt PII for subjects who haven't been forgotten, so the aggregate's
+            // business logic sees real data; no-op otherwise. See GDPR_CCPA.md.
+            $this->anonymizer?->open($event);
+            return $event;
         });
 
         return call_user_func([$aggregate_root_class, 'reconstituteFromHistory'], $recorded_events, $version);
@@ -132,7 +139,18 @@ class EventSourcedRepository implements Repository
             }
 
             if ($this->store instanceof Transactional) $this->store->commitTransaction();
+
+            // Only crypto-shred once the write is durably committed: forgetting a
+            // subject is irreversible and must never happen for a write that could
+            // still be rolled back. See GDPR_CCPA.md.
+            $this->forgetErasedSubjects($recorded_events);
+
             if (is_callable($this->on_commit)) $this->on_commit->__invoke($recorded_events);
+
+            // These events are now durably committed: clear the buffer so a later
+            // save() call on this same instance doesn't recommit, re-dispatch, or
+            // re-forget them.
+            $aggregate->clearRecordedEvents();
 
             return $aggregate;
 
@@ -144,6 +162,43 @@ class EventSourcedRepository implements Repository
     }
 
     /**
+     * Execute a GDPR/CCPA erasure request directly: irreversibly destroy a data
+     * subject's encryption key via crypto-shredding. Useful for triggering "forget me"
+     * from application code (e.g. a command handler) rather than only from the
+     * es:forget console command. See GDPR_CCPA.md.
+     * @param string $pii_id
+     * @return void
+     */
+    public function forgetDataSubject(string $pii_id): void
+    {
+        if (!$this->anonymizer) {
+            throw new RuntimeException('Cannot forget a data subject: no PiiAnonymizer configured.');
+        }
+        $this->anonymizer->forget($pii_id);
+    }
+
+    /**
+     * Crypto-shred every subject whose just-committed event asked to be forgotten
+     * (Contracts\RequestsErasure) - lets an aggregate model "delete me" as an ordinary
+     * domain event recorded through recordThat()/save(), the same mechanism used for
+     * any other event, instead of requiring a separate call.
+     * @param array $recorded_events
+     * @return void
+     */
+    protected function forgetErasedSubjects(array $recorded_events = []): void
+    {
+        if (!$this->anonymizer) return;
+
+        foreach ($recorded_events as $event) {
+            if (!$event instanceof RequestsErasure) continue;
+            if (!$event instanceof DomainEvent) continue;
+
+            $pii_id = $event->getPiiId();
+            if ($pii_id) $this->anonymizer->forget($pii_id);
+        }
+    }
+
+    /**
      * @param array $recorded_events
      * @return boolean
      */
@@ -151,7 +206,15 @@ class EventSourcedRepository implements Repository
     {
         if ($this->store) {
             $recorded_events = array_map(function ($event) {
-                if ($event instanceof Event) return $event->toSqlData();
+                if ($event instanceof Event) {
+                    // Seal a clone for storage: the original keeps its plaintext for
+                    // dispatchEvents(), which runs right after and may drive real-time
+                    // side effects (e.g. sending a confirmation email). See GDPR_CCPA.md.
+                    if ($this->anonymizer && $event instanceof DomainEvent) {
+                        $event = $this->anonymizer->seal(clone $event);
+                    }
+                    return $event->toSqlData();
+                }
                 return $event;
             }, $recorded_events);
             return $this->store->commit($recorded_events);

@@ -141,6 +141,17 @@ abstract class AggregateRoot implements Contract, JsonSerializable
         return $this->recorded_events;
     }
 
+    /**
+     * Clear the recorded-events buffer once they've been durably committed, so a
+     * later save() call on this same instance doesn't recommit (and re-dispatch,
+     * re-forget) events that already made it into the store.
+     * @return void
+     */
+    public function clearRecordedEvents(): void
+    {
+        $this->recorded_events = [];
+    }
+
 
     /**
      * Record a new event.

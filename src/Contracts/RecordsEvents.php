@@ -18,4 +18,10 @@ interface RecordsEvents
      * @return void
      */
 	public function recordThat(Event $event): void;
+
+    /**
+     * Clear the recorded-events buffer, e.g. once they've been durably committed.
+     * @return void
+     */
+	public function clearRecordedEvents(): void;
 }

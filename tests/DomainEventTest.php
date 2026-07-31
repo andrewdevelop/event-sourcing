@@ -93,6 +93,18 @@ class DomainEventTest extends TestCase
         $this->assertEquals($timestamp, $event->getCreatedAt()->getTimestamp());
     }
 
+    public function test_pii_id_is_optional_and_serialized()
+    {
+        $event = new DomainEvent(['name' => 'user.registered']);
+
+        $this->assertNull($event->getPiiId());
+
+        $event->setPiiId('subject-123');
+        $this->assertEquals('subject-123', $event->getPiiId());
+        $this->assertEquals('subject-123', $event->pii_id);
+        $this->assertEquals('subject-123', $event->toArray()['pii_id']);
+    }
+
     public function test_serialization_methods()
     {
         $event = new DomainEvent([

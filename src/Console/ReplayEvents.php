@@ -8,6 +8,7 @@ use Illuminate\Contracts\Console\Kernel;
 use Core\EventSourcing\Contracts\EventStore;
 use Core\EventSourcing\Contracts\EventDispatcher;
 use Core\EventSourcing\DomainEvent;
+use Core\EventSourcing\Pii\PiiAnonymizer;
 
 
 class ReplayEvents extends Command
@@ -32,6 +33,7 @@ class ReplayEvents extends Command
         protected EventDispatcher $dispatcher,
         protected Kernel $console,
         protected EventStore|null $event_store = null,
+        protected PiiAnonymizer|null $anonymizer = null,
     )
     {
     	parent::__construct();
@@ -72,14 +74,19 @@ class ReplayEvents extends Command
                 $this->info('  Replay event: '.$data->name);
                 $this->line('  ID: '.$data->name.' '.$data->id.' Time: '.$data->created_at);
                 $this->line("  Aggregate: ".$data->aggregate_id. " - ".$data->aggregate_type);
+                $this->line("");
             }
             $event = new DomainEvent((array) $data);
+            // Decrypt PII fields for subjects who haven't been forgotten, so rebuilt
+            // projections see real data; no-op if the event carries no PII or the
+            // subject's key is already destroyed. See GDPR_CCPA.md.
+            $this->anonymizer?->open($event);
             try {
             	$this->dispatcher->replay($event);
             } catch (Exception $e) {
-                $this->error("  Error: ".$e->getMessage());
+                $this->error("  Error: ".$e->getMessage(), 'vvv');
+                $this->line("");
             }
-            $this->line("");
         }
 
     }    

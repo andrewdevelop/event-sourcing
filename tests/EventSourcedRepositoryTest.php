@@ -5,9 +5,14 @@ namespace Tests;
 use Core\EventSourcing\AggregateRoot;
 use Core\EventSourcing\Contracts\EventDispatcher;
 use Core\EventSourcing\Contracts\EventStore;
+use Core\EventSourcing\Contracts\Transactional;
 use Core\EventSourcing\DomainEvent;
 use Core\EventSourcing\EventSourcedRepository;
 use PHPUnit\Framework\TestCase;
+
+interface TransactionalEventStore extends EventStore, Transactional
+{
+}
 
 class DummyAggregate extends AggregateRoot
 {
@@ -24,7 +29,7 @@ class EventSourcedRepositoryTest extends TestCase
 {
     public function test_it_saves_successfully_with_transactions()
     {
-        $store = $this->createMock(EventStore::class);
+        $store = $this->createMock(TransactionalEventStore::class);
         $dispatcher = $this->createMock(EventDispatcher::class);
 
         $repository = new EventSourcedRepository($dispatcher, $store);
@@ -46,7 +51,7 @@ class EventSourcedRepositoryTest extends TestCase
 
     public function test_it_rolls_back_if_event_store_commit_fails()
     {
-        $store = $this->createMock(EventStore::class);
+        $store = $this->createMock(TransactionalEventStore::class);
         $dispatcher = $this->createMock(EventDispatcher::class);
 
         $repository = new EventSourcedRepository($dispatcher, $store);
@@ -68,7 +73,7 @@ class EventSourcedRepositoryTest extends TestCase
 
     public function test_it_rolls_back_if_dispatcher_fails()
     {
-        $store = $this->createMock(EventStore::class);
+        $store = $this->createMock(TransactionalEventStore::class);
         $dispatcher = $this->createMock(EventDispatcher::class);
 
         $repository = new EventSourcedRepository($dispatcher, $store);
@@ -89,5 +94,34 @@ class EventSourcedRepositoryTest extends TestCase
         $this->expectExceptionMessage('Listener failed!');
 
         $repository->save($aggregate);
+    }
+
+    public function test_save_clears_recorded_events_so_a_later_save_does_not_recommit_them()
+    {
+        $store = $this->createMock(TransactionalEventStore::class);
+        $dispatcher = $this->createMock(EventDispatcher::class);
+
+        $committedBatches = [];
+        $store->method('commit')->willReturnCallback(function ($events) use (&$committedBatches) {
+            $committedBatches[] = $events;
+            return true;
+        });
+
+        $repository = new EventSourcedRepository($dispatcher, $store);
+
+        $aggregate = DummyAggregate::newInstance('agg-recommit');
+        $aggregate->recordThat(new DomainEvent(['name' => 'dummy.event']));
+        $repository->save($aggregate);
+
+        $this->assertEmpty($aggregate->getRecordedEvents());
+
+        // Recording and saving one more event on the SAME instance must only commit
+        // that new event - not the one already committed above.
+        $aggregate->recordThat(new DomainEvent(['name' => 'dummy.event']));
+        $repository->save($aggregate);
+
+        $this->assertCount(2, $committedBatches);
+        $this->assertCount(1, $committedBatches[0]);
+        $this->assertCount(1, $committedBatches[1]);
     }
 }
