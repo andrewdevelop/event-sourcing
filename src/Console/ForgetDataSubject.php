@@ -24,21 +24,28 @@ class ForgetDataSubject extends Command
      */
     protected $description = 'Irreversibly forget a data subject\'s personal data (GDPR/CCPA erasure via crypto-shredding).';
 
-    public function __construct(protected KeyRing $keys)
+    public function __construct(protected KeyRing|null $keys = null)
     {
         parent::__construct();
     }
 
     /**
      * Execute the console command.
-     * @return void
+     * @return int
      */
     public function handle()
     {
+        if (!$this->keys) {
+            $this->error('  Cannot forget a data subject: no KeyRing bound. Bind Core\EventSourcing\Contracts\KeyRing to a durable implementation to enable GDPR/CCPA erasure.');
+            return self::FAILURE;
+        }
+
         $pii_id = $this->argument('pii_id');
 
         $this->keys->forget($pii_id);
 
         $this->info("  Forgotten data subject: {$pii_id}");
+
+        return self::SUCCESS;
     }
 }

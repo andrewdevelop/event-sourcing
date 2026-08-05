@@ -20,6 +20,29 @@ class UserRegisteredForTest extends DomainEvent implements ContainsPersonalData
     }
 }
 
+class UserWithNestedPiiForTest extends DomainEvent implements ContainsPersonalData
+{
+    protected $name = 'user.registered.nested';
+    public function piiFields(): array
+    {
+        return [
+            'payload' => ['company.name'],
+            'metadata' => ['location.country'],
+        ];
+    }
+}
+
+class UserWithCompanyForTest extends DomainEvent implements ContainsPersonalData
+{
+    protected $name = 'user.registered.company';
+    public function piiFields(): array
+    {
+        return [
+            'payload' => ['company.id'],
+        ];
+    }
+}
+
 class PiiAnonymizerTest extends TestCase
 {
     protected function recordCreatedEvent(): UserRegisteredForTest
@@ -44,7 +67,6 @@ class PiiAnonymizerTest extends TestCase
         $this->assertNotEquals('127.0.0.1', $event->getMetadata()->ip_address);
         // Non-PII fields are left untouched.
         $this->assertEquals('pro', $event->getPayload()->plan);
-        var_dump($event->payload);
     }
 
     public function test_open_decrypts_back_while_key_exists()
@@ -97,6 +119,51 @@ class PiiAnonymizerTest extends TestCase
         $this->assertEquals('jane@example.com', $reloaded->getPayload()->email);
         $this->assertEquals('Jane Doe', $reloaded->getPayload()->full_name);
         $this->assertEquals('127.0.0.1', $reloaded->getMetadata()->ip_address);
+    }
+
+    public function test_seal_and_open_handle_nested_field_paths()
+    {
+        $anonymizer = new PiiAnonymizer(new InMemoryKeyRing());
+        $event = new UserWithNestedPiiForTest([
+            'payload' => ['company' => ['name' => 'Acme Corp']],
+        ]);
+        $event->setPiiId('subject-2');
+        $event->setMetadata(['location' => ['country' => 'US']]);
+
+        $anonymizer->seal($event);
+
+        $this->assertNotEquals('Acme Corp', $event->getPayload()->company['name']);
+        $this->assertNotEquals('US', $event->getMetadata()->location['country']);
+
+        $anonymizer->open($event);
+
+        $this->assertEquals('Acme Corp', $event->getPayload()->company['name']);
+        $this->assertEquals('US', $event->getMetadata()->location['country']);
+    }
+
+    public function test_nested_pii_field_does_not_touch_sibling_fields()
+    {
+        $anonymizer = new PiiAnonymizer(new InMemoryKeyRing());
+        $event = new UserWithCompanyForTest([
+            'payload' => [
+                'company' => ['id' => 'acme-1', 'name' => 'Acme Corp', 'country' => 'US'],
+                'plan' => 'pro',
+            ],
+        ]);
+        $event->setPiiId('subject-3');
+
+        $anonymizer->seal($event);
+
+        $this->assertNotEquals('acme-1', $event->getPayload()->company['id']);
+        $this->assertEquals('Acme Corp', $event->getPayload()->company['name']);
+        $this->assertEquals('US', $event->getPayload()->company['country']);
+        $this->assertEquals('pro', $event->getPayload()->plan);
+
+        $anonymizer->open($event);
+
+        $this->assertEquals('acme-1', $event->getPayload()->company['id']);
+        $this->assertEquals('Acme Corp', $event->getPayload()->company['name']);
+        $this->assertEquals('US', $event->getPayload()->company['country']);
     }
 
     public function test_events_without_pii_id_are_left_untouched()

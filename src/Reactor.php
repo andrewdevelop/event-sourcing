@@ -1,10 +1,9 @@
-<?php 
+<?php
 
 namespace Core\EventSourcing;
 
-use Core\EventSourcing\Contracts\HandlesEvent;
 use Core\Contracts\Event;
-use Illuminate\Contracts\Container\Container;
+use Core\EventSourcing\Contracts\HandlesEvent;
 
 abstract class Reactor implements HandlesEvent
 {
@@ -14,13 +13,13 @@ abstract class Reactor implements HandlesEvent
      * @param Event $event
      * @return mixed
      */
-	public function handle($event_name, Event $event)
-	{
-		$method = $this->getApplicableMethod($event_name);
-		if (method_exists($this, $method)) {
-			return call_user_func([$this, $method], $event);
-		}
-	}
+    public function handle($event_name, Event $event)
+    {
+        $method = $this->getApplicableMethod($event_name);
+        if (method_exists($this, $method)) {
+            return call_user_func([$this, $method], $event);
+        }
+    }
 
     /**
      * Get the method name used for applying the event.
@@ -28,9 +27,9 @@ abstract class Reactor implements HandlesEvent
      * @param $event_name
      * @return string
      */
-	protected function getApplicableMethod($event_name): string
+    protected function getApplicableMethod($event_name): string
     {
         $delimiters = [".", "-", "_"];
         return 'apply' . str_replace($delimiters, '', ucwords($event_name, implode('', $delimiters)));
-	}
+    }
 } 

@@ -2,14 +2,14 @@
 
 namespace Core\EventSourcing;
 
+use Closure;
 use Core\Contracts\Event;
 use Core\EventSourcing\Contracts\EventDispatcher;
 use Core\EventSourcing\Contracts\HandlesEvent;
 use Core\EventSourcing\Contracts\ReplaysEvents;
+use Exception;
 use Illuminate\Contracts\Container\BindingResolutionException;
 use Illuminate\Contracts\Container\Container;
-use Exception;
-use Closure;
 
 /**
  * A very simple domain event dispatcher
@@ -76,8 +76,8 @@ class DomainEventDispatcher implements EventDispatcher
 
     /**
      * Some simple routing.
-     * @param  string $routing_key 
-     * @param  string $event_name  
+     * @param string $routing_key
+     * @param string $event_name
      * @return boolean
      */
     public function match(string $routing_key, string $event_name): bool
@@ -159,7 +159,7 @@ class DomainEventDispatcher implements EventDispatcher
 
     /**
      * Create a listener as a lambda.
-     * @param  Closure $listener 
+     * @param Closure $listener
      * @return Closure
      */
     public function createClosureListener(Closure $listener): Closure

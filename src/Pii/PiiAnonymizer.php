@@ -5,6 +5,7 @@ namespace Core\EventSourcing\Pii;
 use Core\EventSourcing\Contracts\ContainsPersonalData;
 use Core\EventSourcing\Contracts\KeyRing;
 use Core\EventSourcing\DomainEvent;
+use ArrayAccess;
 use RuntimeException;
 
 /**
@@ -112,9 +113,9 @@ class PiiAnonymizer
             if (!$bag) continue;
 
             foreach ($names as $field) {
-                $value = $bag->{$field} ?? null;
+                $value = $this->readField($bag, $field, null);
                 if ($value === null) continue;
-                $bag->{$field} = $transform($value);
+                $this->writeField($bag, $field, $transform($value));
             }
         }
     }
@@ -155,4 +156,87 @@ class PiiAnonymizer
 
         return $plaintext;
     }
+
+    function readField($target, $key, $default = null)
+    {
+        if (is_null($key)) {
+            return $target;
+        }
+
+        $key = is_array($key) ? $key : explode('.', $key);
+
+        foreach ($key as $segment) {
+            if (is_null($segment)) {
+                return $target;
+            }
+
+            if ($target instanceof ArrayAccess) {
+                if (! $target->offsetExists($segment)) {
+                    return $default;
+                }
+
+                $target = $target[$segment];
+            } elseif (is_array($target)) {
+                if (! array_key_exists($segment, $target)) {
+                    return $default;
+                }
+
+                $target = $target[$segment];
+            } elseif (is_object($target) && isset($target->{$segment})) {
+                $target = $target->{$segment};
+            } else {
+                return $default;
+            }
+        }
+
+        return $target;
+    }
+
+    function writeField(&$target, $key, $value, $overwrite = true)
+    {
+        $segments = is_array($key) ? $key : explode('.', $key);
+
+        if (($segment = array_shift($segments)) === null) {
+            return $target;
+        }
+
+        if ($target instanceof ArrayAccess || is_array($target)) {
+            $exists = $target instanceof ArrayAccess
+                ? $target->offsetExists($segment)
+                : array_key_exists($segment, $target);
+
+            if ($segments) {
+                if (! $exists) {
+                    $target[$segment] = [];
+                }
+
+                $inner = $target[$segment];
+                data_set($inner, $segments, $value, $overwrite);
+                $target[$segment] = $inner;
+            } elseif ($overwrite || ! $exists) {
+                $target[$segment] = $value;
+            }
+        } elseif (is_object($target)) {
+            if ($segments) {
+                if (! isset($target->{$segment})) {
+                    $target->{$segment} = [];
+                }
+
+                data_set($target->{$segment}, $segments, $value, $overwrite);
+            } elseif ($overwrite || ! isset($target->{$segment})) {
+                $target->{$segment} = $value;
+            }
+        } else {
+            $target = [];
+
+            if ($segments) {
+                data_set($target[$segment], $segments, $value, $overwrite);
+            } elseif ($overwrite) {
+                $target[$segment] = $value;
+            }
+        }
+
+        return $target;
+    }
+
 }
